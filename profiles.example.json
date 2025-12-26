@@ -1,0 +1,56 @@
+[
+  {
+    "name": "CS:GO Performance",
+    "processes_to_kill": [
+      "discord.exe",
+      "spotify.exe",
+      "chrome.exe",
+      "msedge.exe"
+    ],
+    "crosshair_image_path": "C:/Users/YourUsername/AppData/Roaming/GamingOptimizer/crosshairs/csgo.png",
+    "crosshair_x_offset": 0,
+    "crosshair_y_offset": 2,
+    "overlay_enabled": true
+  },
+  {
+    "name": "Valorant",
+    "processes_to_kill": [
+      "discord.exe",
+      "obs64.exe",
+      "spotify.exe"
+    ],
+    "crosshair_image_path": null,
+    "crosshair_x_offset": 0,
+    "crosshair_y_offset": 0,
+    "overlay_enabled": false
+  },
+  {
+    "name": "Apex Legends",
+    "processes_to_kill": [
+      "discord.exe",
+      "chrome.exe",
+      "teams.exe"
+    ],
+    "crosshair_image_path": "C:/Users/YourUsername/AppData/Roaming/GamingOptimizer/crosshairs/apex.png",
+    "crosshair_x_offset": 0,
+    "crosshair_y_offset": -5,
+    "overlay_enabled": true
+  },
+  {
+    "name": "Maximum Performance",
+    "processes_to_kill": [
+      "discord.exe",
+      "spotify.exe",
+      "chrome.exe",
+      "msedge.exe",
+      "slack.exe",
+      "teams.exe",
+      "onedrive.exe",
+      "dropbox.exe"
+    ],
+    "crosshair_image_path": null,
+    "crosshair_x_offset": 0,
+    "crosshair_y_offset": 0,
+    "overlay_enabled": false
+  }
+]
