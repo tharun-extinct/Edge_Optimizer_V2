@@ -12,6 +12,8 @@ pub struct Profile {
     pub crosshair_x_offset: i32,
     pub crosshair_y_offset: i32,
     pub overlay_enabled: bool,
+    #[serde(default)]
+    pub fan_speed_max: bool,
 }
 
 impl Profile {
@@ -110,6 +112,7 @@ pub fn create_profile(name: String) -> Profile {
         crosshair_x_offset: 0,
         crosshair_y_offset: 0,
         overlay_enabled: true,
+        fan_speed_max: false,
     }
 }
 

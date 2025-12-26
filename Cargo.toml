@@ -4,15 +4,36 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# GUI & Window Management
+iced = { version = "0.12", features = ["debug", "image"] }
 tray-icon = "0.14"           # System tray with menu support (Windows compatible)
 winit = "0.29"               # Window creation for overlay
+softbuffer = "0.4"           # Software rendering for overlay window
+
+# Image & File Handling
 image = "0.24"               # PNG image loading
+rfd = "0.14"                 # File dialogs (cross-platform)
+
+# System & Process Management
 sysinfo = "0.30"             # Process enumeration and management
+parking_lot = "0.12"         # Synchronization primitives
+
+# Data & Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"           # JSON serialization for profiles
 directories = "5.0"          # Cross-platform user data directory
+
+# Error Handling
 anyhow = "1.0"              # Error handling
-softbuffer = "0.4"          # Software rendering for overlay window
+thiserror = "1.0"           # Derive macro for error types
+
+# Threading & IPC
+tokio = { version = "1.35", features = ["sync", "macros", "rt-multi-thread"] }
+crossbeam = "0.8"           # Multi-producer, multi-consumer channels
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.52", features = [
@@ -20,7 +41,9 @@ windows = { version = "0.52", features = [
     "Win32_Graphics_Gdi",
     "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",
 ] }
+winapi = { version = "0.3", features = ["shellapi", "shlobj", "combaseapi"] }
 
 [profile.release]
 opt-level = 3           # Maximum optimization
