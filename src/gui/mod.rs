@@ -14,6 +14,7 @@ use crate::config::get_data_directory;
 use crate::profile::{load_profiles, save_profiles};
 use crate::image_picker::{open_image_picker, validate_crosshair_image};
 use crate::process::{list_processes, kill_processes, ProcessInfo};
+use crate::crosshair_overlay::{self, OverlayHandle};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use tray_icon::{TrayIcon, TrayIconBuilder, Icon};
 use std::sync::Mutex;
@@ -48,6 +49,11 @@ pub enum Message {
     // Crosshair settings
     CrosshairOffsetXChanged(String),
     CrosshairOffsetYChanged(String),
+    CrosshairMoveUp,
+    CrosshairMoveDown,
+    CrosshairMoveLeft,
+    CrosshairMoveRight,
+    CrosshairCenter,
     OverlayEnabledToggled(bool),
     SelectImage,
     ClearImage,
@@ -92,6 +98,9 @@ pub struct GameOptimizer {
     
     // Tray icon (must be kept alive)
     tray_icon: Option<TrayIcon>,
+    
+    // Crosshair overlay handle
+    overlay_handle: Option<OverlayHandle>,
 }
 
 fn create_tray_icon(profiles: &[Profile], active_profile: Option<&str>) -> Option<TrayIcon> {
@@ -316,6 +325,10 @@ impl GameOptimizer {
                 let profile_name = profile.name.clone();
                 let processes = profile.processes_to_kill.clone();
                 let fan_max = profile.fan_speed_max;
+                let overlay_enabled = profile.overlay_enabled;
+                let image_path = profile.crosshair_image_path.clone();
+                let x_offset = profile.crosshair_x_offset;
+                let y_offset = profile.crosshair_y_offset;
                 
                 let report = kill_processes(&processes);
                 
@@ -337,6 +350,30 @@ impl GameOptimizer {
                     status_parts.push("Fan: MAX".to_string());
                 }
                 
+                // Handle crosshair overlay
+                // First, stop any existing overlay
+                if let Some(ref mut handle) = self.overlay_handle {
+                    handle.stop();
+                }
+                self.overlay_handle = None;
+                
+                // Start new overlay if enabled and image path exists
+                if overlay_enabled {
+                    if let Some(ref path) = image_path {
+                        match crosshair_overlay::start_overlay(path.clone(), x_offset, y_offset) {
+                            Ok(handle) => {
+                                self.overlay_handle = Some(handle);
+                                status_parts.push("🎯 Crosshair ON".to_string());
+                            }
+                            Err(e) => {
+                                status_parts.push(format!("Crosshair error: {}", e));
+                            }
+                        }
+                    } else {
+                        status_parts.push("Crosshair: No image".to_string());
+                    }
+                }
+                
                 if status_parts.is_empty() {
                     self.status_message = format!("✅ Profile '{}' activated!", profile_name);
                 } else {
@@ -355,6 +392,13 @@ impl GameOptimizer {
     
     fn deactivate_profile(&mut self) {
         self.active_profile_name = None;
+        
+        // Stop overlay when deactivating
+        if let Some(ref mut handle) = self.overlay_handle {
+            handle.stop();
+        }
+        self.overlay_handle = None;
+        
         self.status_message = "Profile deactivated".to_string();
         self.update_tray();
     }
@@ -389,6 +433,7 @@ impl Application for GameOptimizer {
             data_dir,
             active_profile_name: None,
             tray_icon: None,
+            overlay_handle: None,
         };
         app.load_profiles_from_disk();
         app.refresh_running_processes();
@@ -520,6 +565,32 @@ impl Application for GameOptimizer {
             
             Message::CrosshairOffsetYChanged(value) => {
                 self.edit_y_offset = value;
+            }
+            
+            Message::CrosshairMoveUp => {
+                let current: i32 = self.edit_y_offset.parse().unwrap_or(0);
+                self.edit_y_offset = (current - 1).to_string();
+            }
+            
+            Message::CrosshairMoveDown => {
+                let current: i32 = self.edit_y_offset.parse().unwrap_or(0);
+                self.edit_y_offset = (current + 1).to_string();
+            }
+            
+            Message::CrosshairMoveLeft => {
+                let current: i32 = self.edit_x_offset.parse().unwrap_or(0);
+                self.edit_x_offset = (current - 1).to_string();
+            }
+            
+            Message::CrosshairMoveRight => {
+                let current: i32 = self.edit_x_offset.parse().unwrap_or(0);
+                self.edit_x_offset = (current + 1).to_string();
+            }
+            
+            Message::CrosshairCenter => {
+                self.edit_x_offset = "0".to_string();
+                self.edit_y_offset = "0".to_string();
+                self.status_message = "Crosshair centered".to_string();
             }
             
             Message::OverlayEnabledToggled(enabled) => {
@@ -657,39 +728,15 @@ impl Application for GameOptimizer {
             .push(Space::new(Length::Fill, Length::Fixed(10.0)))
             
             .push(Text::new("🎯 Crosshair Overlay").size(18))
-            .push(
-                Row::new()
-                    .spacing(20)
-                    .push(
-                        Column::new()
-                            .spacing(5)
-                            .push(Text::new("X Offset"))
-                            .push(
-                                TextInput::new("0", &self.edit_x_offset)
-                                    .on_input(Message::CrosshairOffsetXChanged)
-                                    .width(Length::Fixed(100.0))
-                                    .padding(8)
-                            )
-                    )
-                    .push(
-                        Column::new()
-                            .spacing(5)
-                            .push(Text::new("Y Offset"))
-                            .push(
-                                TextInput::new("0", &self.edit_y_offset)
-                                    .on_input(Message::CrosshairOffsetYChanged)
-                                    .width(Length::Fixed(100.0))
-                                    .padding(8)
-                            )
-                    )
-            )
+            .push(Text::new("Crosshair will be centered on screen. Use arrows for pixel-perfect adjustment.").size(12))
             
+            // Image selection row
             .push(
                 Row::new()
                     .spacing(10)
                     .align_items(Alignment::Center)
                     .push(
-                        Button::new(Text::new("📁 Select Image (100x100 PNG)"))
+                        Button::new(Text::new("📁 Select Image"))
                             .on_press(Message::SelectImage)
                             .padding(10)
                     )
@@ -702,14 +749,109 @@ impl Application for GameOptimizer {
                             Button::new(Text::new("❌ Clear")).padding(10)
                         }
                     )
+                    .push(
+                        if let Some(ref path) = self.edit_image_path {
+                            Text::new(format!("✓ {}", path.split('\\').last().unwrap_or(path))).size(12)
+                        } else {
+                            Text::new("No image (100x100 PNG recommended)").size(12)
+                        }
+                    )
             )
             
+            // Crosshair adjustment box
             .push(
-                if let Some(ref path) = self.edit_image_path {
-                    Text::new(format!("✓ Image: {}", path)).size(12)
-                } else {
-                    Text::new("No image selected").size(12)
-                }
+                Container::new(
+                    Column::new()
+                        .spacing(5)
+                        .align_items(Alignment::Center)
+                        .push(Text::new("Position Adjustment").size(14))
+                        .push(
+                            Row::new()
+                                .spacing(10)
+                                .align_items(Alignment::Center)
+                                .push(Space::new(Length::Fixed(40.0), Length::Shrink))
+                                .push(
+                                    Button::new(Text::new("▲").size(16))
+                                        .on_press(Message::CrosshairMoveUp)
+                                        .padding(8)
+                                        .width(Length::Fixed(40.0))
+                                )
+                                .push(Space::new(Length::Fixed(40.0), Length::Shrink))
+                        )
+                        .push(
+                            Row::new()
+                                .spacing(5)
+                                .align_items(Alignment::Center)
+                                .push(
+                                    Button::new(Text::new("◀").size(16))
+                                        .on_press(Message::CrosshairMoveLeft)
+                                        .padding(8)
+                                        .width(Length::Fixed(40.0))
+                                )
+                                .push(
+                                    Button::new(Text::new("⊙").size(14))
+                                        .on_press(Message::CrosshairCenter)
+                                        .padding(8)
+                                        .width(Length::Fixed(50.0))
+                                )
+                                .push(
+                                    Button::new(Text::new("▶").size(16))
+                                        .on_press(Message::CrosshairMoveRight)
+                                        .padding(8)
+                                        .width(Length::Fixed(40.0))
+                                )
+                        )
+                        .push(
+                            Row::new()
+                                .spacing(10)
+                                .align_items(Alignment::Center)
+                                .push(Space::new(Length::Fixed(40.0), Length::Shrink))
+                                .push(
+                                    Button::new(Text::new("▼").size(16))
+                                        .on_press(Message::CrosshairMoveDown)
+                                        .padding(8)
+                                        .width(Length::Fixed(40.0))
+                                )
+                                .push(Space::new(Length::Fixed(40.0), Length::Shrink))
+                        )
+                        .push(
+                            Text::new(format!("Offset: X={}, Y={}", self.edit_x_offset, self.edit_y_offset)).size(12)
+                        )
+                )
+                .padding(15)
+                .width(Length::Fixed(200.0))
+            )
+            
+            // Manual offset input (for precise values)
+            .push(
+                Row::new()
+                    .spacing(15)
+                    .align_items(Alignment::Center)
+                    .push(Text::new("Manual:").size(12))
+                    .push(
+                        Row::new()
+                            .spacing(5)
+                            .align_items(Alignment::Center)
+                            .push(Text::new("X").size(12))
+                            .push(
+                                TextInput::new("0", &self.edit_x_offset)
+                                    .on_input(Message::CrosshairOffsetXChanged)
+                                    .width(Length::Fixed(60.0))
+                                    .padding(5)
+                            )
+                    )
+                    .push(
+                        Row::new()
+                            .spacing(5)
+                            .align_items(Alignment::Center)
+                            .push(Text::new("Y").size(12))
+                            .push(
+                                TextInput::new("0", &self.edit_y_offset)
+                                    .on_input(Message::CrosshairOffsetYChanged)
+                                    .width(Length::Fixed(60.0))
+                                    .padding(5)
+                            )
+                    )
             )
             
             .push(

@@ -9,6 +9,7 @@ mod gui;
 mod ipc;
 mod common_apps;
 mod image_picker;
+mod crosshair_overlay;
 
 use anyhow::Result;
 
