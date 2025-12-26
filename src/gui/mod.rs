@@ -403,6 +403,35 @@ impl GameOptimizer {
         self.update_tray();
     }
     
+    /// Update the live crosshair overlay with new offsets (restarts if running)
+    fn update_live_overlay(&mut self) {
+        // Only update if we have an active overlay
+        if self.overlay_handle.is_some() {
+            // Stop existing overlay
+            if let Some(ref handle) = self.overlay_handle {
+                handle.stop();
+            }
+            self.overlay_handle = None;
+            
+            // Restart with new offsets if we have an image
+            if self.edit_overlay_enabled {
+                if let Some(ref path) = self.edit_image_path {
+                    let x_offset: i32 = self.edit_x_offset.parse().unwrap_or(0);
+                    let y_offset: i32 = self.edit_y_offset.parse().unwrap_or(0);
+                    
+                    match crosshair_overlay::start_overlay(path.clone(), x_offset, y_offset) {
+                        Ok(handle) => {
+                            self.overlay_handle = Some(handle);
+                        }
+                        Err(e) => {
+                            self.status_message = format!("Crosshair error: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     fn update_tray(&mut self) {
         // Recreate tray with updated menu
         self.tray_icon = create_tray_icon(&self.profiles, self.active_profile_name.as_deref());
@@ -570,27 +599,32 @@ impl Application for GameOptimizer {
             Message::CrosshairMoveUp => {
                 let current: i32 = self.edit_y_offset.parse().unwrap_or(0);
                 self.edit_y_offset = (current - 1).to_string();
+                self.update_live_overlay();
             }
             
             Message::CrosshairMoveDown => {
                 let current: i32 = self.edit_y_offset.parse().unwrap_or(0);
                 self.edit_y_offset = (current + 1).to_string();
+                self.update_live_overlay();
             }
             
             Message::CrosshairMoveLeft => {
                 let current: i32 = self.edit_x_offset.parse().unwrap_or(0);
                 self.edit_x_offset = (current - 1).to_string();
+                self.update_live_overlay();
             }
             
             Message::CrosshairMoveRight => {
                 let current: i32 = self.edit_x_offset.parse().unwrap_or(0);
                 self.edit_x_offset = (current + 1).to_string();
+                self.update_live_overlay();
             }
             
             Message::CrosshairCenter => {
                 self.edit_x_offset = "0".to_string();
                 self.edit_y_offset = "0".to_string();
                 self.status_message = "Crosshair centered".to_string();
+                self.update_live_overlay();
             }
             
             Message::OverlayEnabledToggled(enabled) => {
