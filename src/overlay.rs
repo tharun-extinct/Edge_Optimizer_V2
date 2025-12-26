@@ -23,13 +23,16 @@ pub struct OverlayWindow {
 impl OverlayWindow {
     /// Create a new overlay window with the specified crosshair image
     pub fn new(
-        event_loop: &EventLoop<()>,
         image_path: &str,
         x_offset: i32,
         y_offset: i32,
-    ) -> Result<Self> {
+    ) -> Result<(Self, EventLoop<()>)> {
         // Load and validate crosshair image
         let (crosshair_data, width, height) = Self::load_crosshair_image(image_path)?;
+
+        // Create event loop for overlay window
+        let event_loop = EventLoop::new()
+            .map_err(|e| anyhow!("Failed to create event loop: {}", e))?;
 
         // Create fullscreen transparent window
         let window = WindowBuilder::new()
@@ -37,7 +40,7 @@ impl OverlayWindow {
             .with_transparent(true)
             .with_decorations(false)
             .with_title("Gaming Optimizer Overlay")
-            .build(event_loop)
+            .build(&event_loop)
             .map_err(|e| anyhow!("Failed to create overlay window: {}", e))?;
 
         // Set window properties
@@ -69,7 +72,7 @@ impl OverlayWindow {
         // Initial render
         overlay.render()?;
 
-        Ok(overlay)
+        Ok((overlay, event_loop))
     }
 
     /// Load crosshair image from PNG file

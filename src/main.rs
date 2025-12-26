@@ -9,10 +9,10 @@ mod tray;
 use anyhow::Result;
 use config::{get_data_directory, load_config, save_config, AppConfig};
 use overlay::OverlayWindow;
-use process::{kill_processes, would_be_protected};
+use process::kill_processes;
 use profile::{load_profiles, Profile};
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 use tray::TrayManager;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -45,7 +45,7 @@ fn main() -> Result<()> {
     println!("Starting Gaming Optimizer...");
 
     // Load configuration
-    let mut config = load_config().unwrap_or_default();
+    let config = load_config().unwrap_or_default();
 
     // Get data directory
     let data_dir = get_data_directory()?;
@@ -57,13 +57,13 @@ fn main() -> Result<()> {
     let active_profile_index = config
         .active_profile
         .as_ref()
-        .and_then(|name| profiles.iter().position(|p| p.name == name));
+        .and_then(|name| profiles.iter().position(|p| &p.name == name));
 
     // Get active profile name for tray
     let active_profile_name = active_profile_index.map(|idx| profiles[idx].name.as_str());
 
     // Create event loop
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().expect("Failed to create event loop");
 
     // Create system tray
     let tray = TrayManager::new(&profiles, active_profile_name)?;
@@ -86,8 +86,8 @@ fn main() -> Result<()> {
     println!("Gaming Optimizer started. Check system tray.");
 
     // Main event loop
-    event_loop.run(move |event, event_loop_target, control_flow| {
-        *control_flow = ControlFlow::Wait;
+    let _ = event_loop.run(move |event, event_loop_target| {
+        event_loop_target.set_control_flow(ControlFlow::Wait);
 
         match event {
             Event::WindowEvent { event, window_id } => {
@@ -110,17 +110,17 @@ fn main() -> Result<()> {
                 }
             }
 
-            Event::MainEventsCleared => {
+            Event::AboutToWait => {
                 // Check for profile file updates
                 check_and_reload_profiles(&mut state, &data_dir);
 
                 // Poll tray events
                 if let Some(tray_event) = state.tray.poll_events(&state.profiles) {
-                    handle_tray_event(tray_event, &mut state, event_loop_target, &data_dir);
+                    handle_tray_event(tray_event, &mut state, &data_dir);
                 }
             }
 
-            Event::LoopDestroyed => {
+            Event::LoopExiting => {
                 // Clean up
                 if let Some(ref mut overlay) = state.overlay {
                     overlay.hide();
@@ -130,24 +130,20 @@ fn main() -> Result<()> {
 
             _ => {}
         }
-
-        // Check if we should exit
-        if *control_flow == ControlFlow::Exit {
-            return;
-        }
     });
+
+    Ok(())
 }
 
 /// Handle tray menu events
 fn handle_tray_event(
     event: tray::TrayEvent,
     state: &mut AppState,
-    event_loop: &winit::event_loop::EventLoopWindowTarget<()>,
     data_dir: &std::path::Path,
 ) {
     match event {
         tray::TrayEvent::ProfileSelected(profile_name) => {
-            activate_profile(state, &profile_name, event_loop, data_dir);
+            activate_profile(state, &profile_name, data_dir);
         }
 
         tray::TrayEvent::ProfileDeactivated => {
@@ -155,7 +151,7 @@ fn handle_tray_event(
         }
 
         tray::TrayEvent::OverlayToggled => {
-            toggle_overlay(state, event_loop);
+            toggle_overlay(state);
         }
 
         tray::TrayEvent::OpenSettings => {
@@ -177,8 +173,7 @@ fn handle_tray_event(
 fn activate_profile(
     state: &mut AppState,
     profile_name: &str,
-    event_loop: &winit::event_loop::EventLoopWindowTarget<()>,
-    data_dir: &std::path::Path,
+    _data_dir: &std::path::Path,
 ) {
     // Find profile
     let profile_idx = match state.find_profile_index(profile_name) {
@@ -213,12 +208,11 @@ fn activate_profile(
     if let Some(ref image_path) = profile.crosshair_image_path {
         if profile.overlay_enabled {
             match OverlayWindow::new(
-                event_loop,
                 image_path,
                 profile.crosshair_x_offset,
                 profile.crosshair_y_offset,
             ) {
-                Ok(mut overlay) => {
+                Ok((mut overlay, _overlay_event_loop)) => {
                     let _ = overlay.show();
                     state.overlay = Some(overlay);
                     state.config.overlay_visible = true;
@@ -277,7 +271,7 @@ fn deactivate_profile(state: &mut AppState) {
 }
 
 /// Toggle overlay visibility
-fn toggle_overlay(state: &mut AppState, event_loop: &winit::event_loop::EventLoopWindowTarget<()>) {
+fn toggle_overlay(state: &mut AppState) {
     if let Some(ref mut overlay) = state.overlay {
         if overlay.is_visible() {
             overlay.hide();
@@ -341,7 +335,9 @@ fn check_and_reload_profiles(state: &mut AppState, data_dir: &std::path::Path) {
             state.profiles_last_modified = current_modified;
 
             // Update tray menu
-            let active_name = state.get_active_profile().map(|p| p.name.as_str());
+            let active_name = state.active_profile_index
+                .and_then(|idx| state.profiles.get(idx))
+                .map(|p| p.name.as_str());
             let _ = state.tray.update_profiles(&state.profiles, active_name);
 
             println!("Profiles reloaded successfully");

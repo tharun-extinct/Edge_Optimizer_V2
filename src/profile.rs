@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Gaming profile containing optimization settings and crosshair configuration
 #[derive(Serialize, Deserialize, Clone, Debug)]

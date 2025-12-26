@@ -1,4 +1,4 @@
-use sysinfo::{ProcessExt, System, SystemExt};
+use sysinfo::System;
 
 /// Information about a running process
 #[derive(Debug, Clone)]
@@ -105,7 +105,7 @@ pub fn kill_processes(process_names: &[String]) -> KillReport {
         let mut killed_any = false;
         let mut failed_any = false;
 
-        for (pid, process) in sys.processes() {
+        for (_pid, process) in sys.processes() {
             let process_name = process.name();
             let process_normalized = normalize_process_name(process_name);
 
