@@ -1,7 +1,7 @@
 ---
-applyTo: "**/*"
-name: Edge Optimizer
-description: High-performance RUST-based gaming optimization application
+ApplyTo: "**/*"
+Name: Edge Optimizer
+escription: High-performance RUST-based gaming optimization application
 ---
 
 **Project name:** Edge Optimizer
