@@ -1,6 +1,6 @@
 ---
-applyTo: **/*
-name: Edge_Optimizer_V2
+applyTo: "**/*"
+name: Edge Optimizer
 description: High-performance RUST-based gaming optimization application
 ---
 
