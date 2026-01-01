@@ -22,6 +22,7 @@ parking_lot = "0.12"         # Synchronization primitives
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"           # JSON serialization for profiles
 directories = "5.0"          # Cross-platform user data directory
+open = "5.0"                 # Open URLs in default browser
 
 # Error Handling
 anyhow = "1.0"              # Error handling
@@ -40,10 +41,12 @@ tracing-subscriber = "0.3"
 windows = { version = "0.52", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_GdiPlus",     # GDI+ for anti-aliased rendering
     "Win32_Graphics_Dwm",
     "Win32_System_Threading",
     "Win32_System_LibraryLoader",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_HiDpi",               # DPI awareness functions
     "Win32_UI_Shell",
     "Win32_UI_Controls",
 ] }

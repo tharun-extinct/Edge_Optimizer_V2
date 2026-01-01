@@ -39,24 +39,25 @@ pub fn get_data_directory() -> Result<PathBuf> {
 }
 
 /// Load application configuration from config.json
-/// Returns default config if file doesn't exist
-pub fn load_config() -> Result<AppConfig> {
-    let data_dir = get_data_directory()?;
+/// Returns default config if file doesn't exist or on error
+pub fn load_config() -> AppConfig {
+    let Ok(data_dir) = get_data_directory() else {
+        return AppConfig::default();
+    };
+    
     let config_path = data_dir.join("config.json");
 
     // If file doesn't exist, return default config
     if !config_path.exists() {
-        return Ok(AppConfig::default());
+        return AppConfig::default();
     }
 
     // Read and parse JSON
-    let contents = fs::read_to_string(&config_path)
-        .map_err(|e| anyhow!("Failed to read config.json: {}", e))?;
+    let Ok(contents) = fs::read_to_string(&config_path) else {
+        return AppConfig::default();
+    };
 
-    let config: AppConfig = serde_json::from_str(&contents)
-        .map_err(|e| anyhow!("Failed to parse config.json: {}", e))?;
-
-    Ok(config)
+    serde_json::from_str(&contents).unwrap_or_default()
 }
 
 /// Save application configuration to config.json
