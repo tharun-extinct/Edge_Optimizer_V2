@@ -922,10 +922,14 @@ impl GameOptimizer {
 }
 
 pub fn run() -> iced::Result {
+    println!("[GUI] Starting GUI run function...");
+    
     // Load configuration and profiles for tray
     let app_config = crate::config::load_config();
     let data_dir = crate::config::get_data_directory().expect("Failed to get data directory");
     let profiles = crate::profile::load_profiles(&data_dir).unwrap_or_default();
+    
+    println!("[GUI] Loaded {} profiles", profiles.len());
     
     // Create IPC channels
     let (gui_to_tray_tx, gui_to_tray_rx) = std::sync::mpsc::channel();
@@ -945,6 +949,7 @@ pub fn run() -> iced::Result {
     };
     
     // Start tray flyout thread
+    println!("[GUI] Starting tray thread...");
     std::thread::spawn(move || {
         crate::tray_flyout::run_tray_flyout_thread(
             channels,
@@ -953,13 +958,20 @@ pub fn run() -> iced::Result {
         );
     });
     
+    // Small delay to let tray initialize
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    
     // Run iced GUI
-    GameOptimizer::run(Settings {
+    println!("[GUI] About to launch iced application...");
+    let result = GameOptimizer::run(Settings {
         window: iced::window::Settings {
             size: iced::Size::new(1000.0, 750.0),
             min_size: Some(iced::Size::new(900.0, 650.0)),
             ..Default::default()
         },
         ..Default::default()
-    })
+    });
+    
+    println!("[GUI] Iced returned: {:?}", result);
+    result
 }
