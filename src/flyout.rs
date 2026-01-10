@@ -27,8 +27,13 @@ const FLYOUT_HEIGHT: i32 = 486;  // Match PowerToys
 const ITEM_HEIGHT: i32 = 60;     // Taller items
 const PADDING: i32 = 16;
 
-/// Flyout window state
+/// Flyout window handle (actual state stored in GWLP_USERDATA for thread safety)
 pub struct FlyoutWindow {
+    hwnd: HWND,
+}
+
+/// Internal state stored in GWLP_USERDATA
+struct FlyoutState {
     hwnd: HWND,
     profiles: Vec<Profile>,
     active_profile: Option<String>,
@@ -132,7 +137,7 @@ impl FlyoutWindow {
                 mem::size_of::<DWMNCRENDERINGPOLICY>() as u32,
             )?;
 
-            let flyout = Self {
+            let state = FlyoutState {
                 hwnd,
                 profiles,
                 active_profile,
@@ -141,21 +146,157 @@ impl FlyoutWindow {
                 gdiplus_token,
             };
 
-            // Store pointer to flyout in window data
-            SetWindowLongPtrW(hwnd, GWLP_USERDATA, &flyout as *const _ as isize);
+            // Store state in GWLP_USERDATA using Box for proper ownership management
+            let state_box = Box::new(state);
+            let state_ptr = Box::into_raw(state_box);
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, state_ptr as isize);
+
+            // Get reference for initial render (safe - we control lifetime via WM_DESTROY)
+            let state_ref = &*state_ptr;
 
             // Initial render
-            flyout.render()?;
+            FlyoutState::render(state_ref)?;
 
             // Show and activate window so user can interact
             ShowWindow(hwnd, SW_SHOW);
             use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
             SetForegroundWindow(hwnd);
             
-            anyhow::Ok(flyout)
+            // Return lightweight handle
+            anyhow::Ok(Self { hwnd })
         }
     }
 
+    /// Show the flyout window
+    pub fn show(&self) {
+        unsafe {
+            ShowWindow(self.hwnd, SW_SHOWNOACTIVATE);
+        }
+    }
+
+    /// Hide the flyout window
+    pub fn hide(&self) {
+        unsafe {
+            ShowWindow(self.hwnd, SW_HIDE);
+        }
+    }
+
+    /// Update profiles list
+    pub fn update_profiles(&mut self, profiles: Vec<Profile>, active: Option<String>) -> anyhow::Result<()> {
+        unsafe {
+            if let Some(state) = Self::get_state(self.hwnd) {
+                state.profiles = profiles;
+                state.active_profile = active;
+                FlyoutState::render(state)?;
+            }
+            anyhow::Ok(())
+        }
+    }
+
+    /// Get state reference from window data (for internal use)
+    unsafe fn get_state(hwnd: HWND) -> Option<&'static mut FlyoutState> {
+        let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+        if ptr != 0 {
+            Some(&mut *(ptr as *mut FlyoutState))
+        } else {
+            None
+        }
+    }
+
+    /// Window procedure
+    unsafe extern "system" fn wndproc(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
+        match msg {
+            WM_MOUSEMOVE => {
+                let state = FlyoutWindow::get_state(hwnd);
+                if let Some(state) = state {
+                    let y = ((lparam.0 >> 16) & 0xFFFF) as i16 as i32;
+                    let x = (lparam.0 & 0xFFFF) as i16 as i32;
+                    
+                    // Items start at y=90 (below title and subtitle)
+                    let items_start_y = 90;
+                    let item_index = (y - items_start_y) / ITEM_HEIGHT;
+                    
+                    // Check if mouse is in the item area
+                    if y >= items_start_y && x >= PADDING && x < (FLYOUT_WIDTH - PADDING) 
+                        && item_index >= 0 && (item_index as usize) < state.profiles.len() 
+                    {
+                        if state.hover_index != Some(item_index as usize) {
+                            state.hover_index = Some(item_index as usize);
+                            let _ = FlyoutState::render(state);
+                        }
+                    } else if state.hover_index.is_some() {
+                        state.hover_index = None;
+                        let _ = FlyoutState::render(state);
+                    }
+                }
+                LRESULT(0)
+            }
+            WM_LBUTTONDOWN => {
+                let state = FlyoutWindow::get_state(hwnd);
+                if let Some(state) = state {
+                    if let Some(index) = state.hover_index {
+                        if let Some(profile) = state.profiles.get(index) {
+                            println!("[FLYOUT] Activating profile: {}", profile.name);
+                            // Send activation request to main app
+                            let _ = state.to_gui_tx.send(TrayToGui::ActivateProfile(profile.name.clone()));
+                            // Close flyout
+                            let _ = PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0));
+                        }
+                    }
+                }
+                LRESULT(0)
+            }
+            WM_KILLFOCUS => {
+                // Don't auto-close on focus loss - let user interact
+                LRESULT(0)
+            }
+            WM_ACTIVATE => {
+                // Close flyout when deactivated (clicked outside)
+                if wparam.0 == 0 {
+                    let _ = PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0));
+                }
+                LRESULT(0)
+            }
+            WM_CLOSE => {
+                let _ = DestroyWindow(hwnd);
+                LRESULT(0)
+            }
+            WM_DESTROY => {
+                let state = FlyoutWindow::get_state(hwnd);
+                if let Some(state) = state {
+                    // Cleanup GDI+
+                    GdiplusShutdown(state.gdiplus_token);
+                    
+                    // CRITICAL: Reclaim Box ownership and drop to free memory
+                    let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+                    if ptr != 0 {
+                        SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0); // Clear pointer first
+                        let _ = Box::from_raw(ptr as *mut FlyoutState); // Drop the Box
+                    }
+                }
+                LRESULT(0)
+            }
+            _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+        }
+    }
+}
+
+impl Drop for FlyoutWindow {
+    fn drop(&mut self) {
+        unsafe {
+            if self.hwnd != HWND::default() {
+                let _ = DestroyWindow(self.hwnd);
+            }
+        }
+    }
+}
+
+impl FlyoutState {
     /// Render the flyout menu with GDI+
     unsafe fn render(&self) -> anyhow::Result<()> {
         let screen_dc = GetDC(None);
@@ -555,8 +696,8 @@ impl FlyoutWindow {
     ) -> LRESULT {
         match msg {
             WM_MOUSEMOVE => {
-                let flyout = Self::get_flyout(hwnd);
-                if let Some(flyout) = flyout {
+                let state = FlyoutWindow::get_state(hwnd);
+                if let Some(state) = state {
                     let y = ((lparam.0 >> 16) & 0xFFFF) as i16 as i32;
                     let x = (lparam.0 & 0xFFFF) as i16 as i32;
                     
@@ -566,27 +707,27 @@ impl FlyoutWindow {
                     
                     // Check if mouse is in the item area
                     if y >= items_start_y && x >= PADDING && x < (FLYOUT_WIDTH - PADDING) 
-                        && item_index >= 0 && (item_index as usize) < flyout.profiles.len() 
+                        && item_index >= 0 && (item_index as usize) < state.profiles.len() 
                     {
-                        if flyout.hover_index != Some(item_index as usize) {
-                            flyout.hover_index = Some(item_index as usize);
-                            let _ = flyout.render();
+                        if state.hover_index != Some(item_index as usize) {
+                            state.hover_index = Some(item_index as usize);
+                            let _ = FlyoutState::render(state);
                         }
-                    } else if flyout.hover_index.is_some() {
-                        flyout.hover_index = None;
-                        let _ = flyout.render();
+                    } else if state.hover_index.is_some() {
+                        state.hover_index = None;
+                        let _ = FlyoutState::render(state);
                     }
                 }
                 LRESULT(0)
             }
             WM_LBUTTONDOWN => {
-                let flyout = Self::get_flyout(hwnd);
-                if let Some(flyout) = flyout {
-                    if let Some(index) = flyout.hover_index {
-                        if let Some(profile) = flyout.profiles.get(index) {
+                let state = FlyoutWindow::get_state(hwnd);
+                if let Some(state) = state {
+                    if let Some(index) = state.hover_index {
+                        if let Some(profile) = state.profiles.get(index) {
                             println!("[FLYOUT] Activating profile: {}", profile.name);
                             // Send activation request to main app
-                            let _ = flyout.to_gui_tx.send(TrayToGui::ActivateProfile(profile.name.clone()));
+                            let _ = state.to_gui_tx.send(TrayToGui::ActivateProfile(profile.name.clone()));
                             // Close flyout
                             let _ = PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0));
                         }
@@ -610,9 +751,17 @@ impl FlyoutWindow {
                 LRESULT(0)
             }
             WM_DESTROY => {
-                let flyout = Self::get_flyout(hwnd);
-                if let Some(flyout) = flyout {
-                    GdiplusShutdown(flyout.gdiplus_token);
+                let state = FlyoutWindow::get_state(hwnd);
+                if let Some(state) = state {
+                    // Cleanup GDI+
+                    GdiplusShutdown(state.gdiplus_token);
+                    
+                    // CRITICAL: Reclaim Box ownership and drop to free memory
+                    let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+                    if ptr != 0 {
+                        SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0); // Clear pointer first
+                        let _ = Box::from_raw(ptr as *mut FlyoutState); // Drop the Box
+                    }
                 }
                 LRESULT(0)
             }
@@ -652,16 +801,7 @@ impl FlyoutWindow {
     }
 }
 
-impl Drop for FlyoutWindow {
-    fn drop(&mut self) {
-        unsafe {
-            if self.hwnd != HWND::default() {
-                let _ = DestroyWindow(self.hwnd);
-            }
-            GdiplusShutdown(self.gdiplus_token);
-        }
-    }
-}
+
 
 /// Helper function to get tray icon rect (placeholder - needs tray-icon crate integration)
 pub fn get_tray_rect() -> RECT {

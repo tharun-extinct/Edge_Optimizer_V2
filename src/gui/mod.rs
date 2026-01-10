@@ -22,7 +22,6 @@ use std::time::Instant;
 use once_cell::sync::Lazy;
 use tray_icon::{TrayIconEvent, MouseButton, MouseButtonState};
 use tray_icon::menu::MenuEvent;
-use windows::Win32::UI::WindowsAndMessaging::{MSG, PeekMessageW, TranslateMessage, DispatchMessageW, PM_REMOVE};
 
 /// Global channel for tray icon events
 static TRAY_EVENT_RX: Lazy<Mutex<Option<Receiver<TrayIconEvent>>>> = Lazy::new(|| Mutex::new(None));
