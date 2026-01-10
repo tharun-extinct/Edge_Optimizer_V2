@@ -1,10 +1,8 @@
 // #![windows_subsystem = "windows"]  // Temporarily disabled for debugging
 
 mod config;
-mod overlay;
 mod process;
 mod profile;
-mod tray;
 mod tray_flyout;
 mod gui;
 mod ipc;

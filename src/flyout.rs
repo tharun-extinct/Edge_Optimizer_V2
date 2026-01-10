@@ -42,8 +42,9 @@ struct FlyoutState {
     gdiplus_token: usize,
 }
 
-/// Menu item for rendering
+/// Menu item for rendering (internal use)
 #[derive(Clone)]
+#[allow(dead_code)]
 struct MenuItem {
     name: String,
     is_active: bool,
@@ -684,137 +685,6 @@ impl FlyoutState {
                 *bits.add(offset + 1) = ((g as u16 * a as u16) / 255) as u8;
                 *bits.add(offset + 2) = ((r as u16 * a as u16) / 255) as u8;
             }
-        }
-    }
-
-    /// Window procedure
-    unsafe extern "system" fn wndproc(
-        hwnd: HWND,
-        msg: u32,
-        wparam: WPARAM,
-        lparam: LPARAM,
-    ) -> LRESULT {
-        match msg {
-            WM_MOUSEMOVE => {
-                let state = FlyoutWindow::get_state(hwnd);
-                if let Some(state) = state {
-                    let y = ((lparam.0 >> 16) & 0xFFFF) as i16 as i32;
-                    let x = (lparam.0 & 0xFFFF) as i16 as i32;
-                    
-                    // Items start at y=90 (below title and subtitle)
-                    let items_start_y = 90;
-                    let item_index = (y - items_start_y) / ITEM_HEIGHT;
-                    
-                    // Check if mouse is in the item area
-                    if y >= items_start_y && x >= PADDING && x < (FLYOUT_WIDTH - PADDING) 
-                        && item_index >= 0 && (item_index as usize) < state.profiles.len() 
-                    {
-                        if state.hover_index != Some(item_index as usize) {
-                            state.hover_index = Some(item_index as usize);
-                            let _ = FlyoutState::render(state);
-                        }
-                    } else if state.hover_index.is_some() {
-                        state.hover_index = None;
-                        let _ = FlyoutState::render(state);
-                    }
-                }
-                LRESULT(0)
-            }
-            WM_LBUTTONDOWN => {
-                let state = FlyoutWindow::get_state(hwnd);
-                if let Some(state) = state {
-                    if let Some(index) = state.hover_index {
-                        if let Some(profile) = state.profiles.get(index) {
-                            println!("[FLYOUT] Activating profile: {}", profile.name);
-                            // Send activation request to main app
-                            let _ = state.to_gui_tx.send(TrayToGui::ActivateProfile(profile.name.clone()));
-                            // Close flyout
-                            let _ = PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0));
-                        }
-                    }
-                }
-                LRESULT(0)
-            }
-            WM_KILLFOCUS => {
-                // Don't auto-close on focus loss - let user interact
-                LRESULT(0)
-            }
-            WM_ACTIVATE => {
-                // Close flyout when deactivated (clicked outside)
-                if wparam.0 == 0 {
-                    let _ = PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0));
-                }
-                LRESULT(0)
-            }
-            WM_CLOSE => {
-                let _ = DestroyWindow(hwnd);
-                LRESULT(0)
-            }
-            WM_DESTROY => {
-                let state = FlyoutWindow::get_state(hwnd);
-                if let Some(state) = state {
-                    // Cleanup GDI+
-                    GdiplusShutdown(state.gdiplus_token);
-                    
-                    // CRITICAL: Reclaim Box ownership and drop to free memory
-                    let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-                    if ptr != 0 {
-                        SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0); // Clear pointer first
-                        let _ = Box::from_raw(ptr as *mut FlyoutState); // Drop the Box
-                    }
-                }
-                LRESULT(0)
-            }
-            _ => DefWindowProcW(hwnd, msg, wparam, lparam),
-        }
-    }
-
-    /// Get flyout reference from window data
-    unsafe fn get_flyout<'a>(hwnd: HWND) -> Option<&'a mut FlyoutWindow> {
-        let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-        if ptr != 0 {
-            Some(&mut *(ptr as *mut FlyoutWindow))
-        } else {
-            None
-        }
-    }
-
-    /// Show the flyout window
-    pub fn show(&self) {
-        unsafe {
-            ShowWindow(self.hwnd, SW_SHOWNOACTIVATE);
-        }
-    }
-
-    /// Hide the flyout window
-    pub fn hide(&self) {
-        unsafe {
-            ShowWindow(self.hwnd, SW_HIDE);
-        }
-    }
-
-    /// Update profiles list
-    pub fn update_profiles(&mut self, profiles: Vec<Profile>, active: Option<String>) -> anyhow::Result<()> {
-        self.profiles = profiles;
-        self.active_profile = active;
-        unsafe { self.render() }
-    }
-}
-
-
-
-/// Helper function to get tray icon rect (placeholder - needs tray-icon crate integration)
-pub fn get_tray_rect() -> RECT {
-    unsafe {
-        // Default to lower-right corner of screen
-        let screen_width = GetSystemMetrics(SM_CXSCREEN);
-        let screen_height = GetSystemMetrics(SM_CYSCREEN);
-        
-        RECT {
-            left: screen_width - 100,
-            top: screen_height - 50,
-            right: screen_width,
-            bottom: screen_height,
         }
     }
 }

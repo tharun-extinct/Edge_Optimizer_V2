@@ -113,6 +113,7 @@ pub struct GameOptimizer {
 
 /// Tray action to be processed by the app
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum TrayAction {
     ShowFlyout,
     HideFlyout,
