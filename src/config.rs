@@ -1,3 +1,31 @@
+/// Configuration module for the Gaming Optimizer application.
+/// 
+/// This module provides functionality for managing application configuration,
+/// including:
+/// - Storing and retrieving the active optimization profile
+/// - Managing overlay visibility state
+/// - Persisting configuration to disk as JSON
+/// - Determining the appropriate data directory for the application
+/// 
+/// The configuration is automatically saved to and loaded from a `config.json`
+/// file located in the platform-specific application data directory
+/// (%APPDATA%/GamingOptimizer/ on Windows).
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use gaming_optimizer::config::{AppConfig, load_config, save_config};
+/// 
+/// // Load existing config or get defaults
+/// let mut config = load_config();
+/// 
+/// // Modify config
+/// config.active_profile = Some("Gaming".to_string());
+/// config.overlay_visible = true;
+/// 
+/// // Save changes
+/// save_config(&config).expect("Failed to save config");
+/// ```
 use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
@@ -61,6 +89,7 @@ pub fn load_config() -> AppConfig {
 }
 
 /// Save application configuration to config.json
+#[allow(dead_code)]
 pub fn save_config(config: &AppConfig) -> Result<()> {
     let data_dir = get_data_directory()?;
     let config_path = data_dir.join("config.json");

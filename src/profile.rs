@@ -18,6 +18,7 @@ pub struct Profile {
 
 impl Profile {
     /// Validate profile data
+    #[allow(dead_code)]
     pub fn validate(&self) -> Result<()> {
         // Validate name length (1-50 characters)
         if self.name.is_empty() || self.name.len() > 50 {
@@ -104,6 +105,7 @@ pub fn save_profiles(profiles: &[Profile], data_dir: &Path) -> Result<()> {
 }
 
 /// Create a new profile with default values
+#[allow(dead_code)]
 pub fn create_profile(name: String) -> Profile {
     Profile {
         name,
@@ -117,6 +119,7 @@ pub fn create_profile(name: String) -> Profile {
 }
 
 /// Delete profile at the specified index
+#[allow(dead_code)]
 pub fn delete_profile(profiles: &mut Vec<Profile>, index: usize) {
     if index < profiles.len() {
         profiles.remove(index);
@@ -124,6 +127,7 @@ pub fn delete_profile(profiles: &mut Vec<Profile>, index: usize) {
 }
 
 /// Check if profile name is unique in the list (case-insensitive)
+#[allow(dead_code)]
 pub fn is_profile_name_unique(profiles: &[Profile], name: &str, exclude_index: Option<usize>) -> bool {
     let name_lower = name.to_lowercase();
 

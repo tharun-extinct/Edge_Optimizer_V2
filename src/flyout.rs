@@ -176,6 +176,7 @@ impl FlyoutWindow {
     }
 
     /// Hide the flyout window
+    #[allow(dead_code)]
     pub fn hide(&self) {
         unsafe {
             ShowWindow(self.hwnd, SW_HIDE);
@@ -655,6 +656,7 @@ impl FlyoutState {
     }
 
     /// Draw checkmark symbol
+    #[allow(dead_code)]
     unsafe fn draw_checkmark(graphics: *mut GpGraphics, x: i32, y: i32) {
         let mut pen: *mut GpPen = null_mut();
         GdipCreatePen1(0xFF_4C_AF_50, 2.5, Unit(2), &mut pen); // Green checkmark

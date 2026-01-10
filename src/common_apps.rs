@@ -63,6 +63,7 @@ pub const COMMON_APPS: &[(&str, &str)] = &[
     ("Windows 11 Game Bar", "GameBarFTDesktopComp.exe"),
 ];
 
+#[allow(dead_code)]
 pub fn get_common_apps() -> Vec<CommonApp> {
     COMMON_APPS
         .iter()
@@ -74,6 +75,7 @@ pub fn get_common_apps() -> Vec<CommonApp> {
         .collect()
 }
 
+#[allow(dead_code)]
 pub fn find_app_by_executable(executable: &str) -> Option<&'static (&'static str, &'static str)> {
     COMMON_APPS
         .iter()

@@ -4,6 +4,7 @@ use crate::gui::Message;
 use crate::profile::Profile;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct EditingProfile {
     pub name: String,
     pub crosshair_x_offset: String,
@@ -36,6 +37,7 @@ impl From<&Profile> for EditingProfile {
     }
 }
 
+#[allow(dead_code)]
 pub fn render_editor(profile: &EditingProfile) -> Element<'static, Message> {
     let content = Column::new()
         .spacing(15)

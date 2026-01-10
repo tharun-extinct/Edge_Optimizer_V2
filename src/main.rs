@@ -38,7 +38,7 @@ fn run_tray_only() -> Result<()> {
     let profiles = profile::load_profiles(&data_dir)?;
     
     // Create IPC channels using std::sync::mpsc
-    let (gui_to_tray_tx, gui_to_tray_rx) = std::sync::mpsc::channel();
+    let (_gui_to_tray_tx, gui_to_tray_rx) = std::sync::mpsc::channel();
     let (tray_to_gui_tx, tray_to_gui_rx) = std::sync::mpsc::channel();
     
     let channels = ipc::TrayChannels {

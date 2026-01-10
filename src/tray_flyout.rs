@@ -250,7 +250,7 @@ impl TrayFlyoutManager {
             "Gaming Optimizer - Inactive".to_string()
         };
         
-        self.tray_icon.set_tooltip(Some(&tooltip));
+        let _ = self.tray_icon.set_tooltip(Some(&tooltip));
     }
 
     /// Update profiles list

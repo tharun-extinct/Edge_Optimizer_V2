@@ -3,6 +3,7 @@ use sysinfo::System;
 /// Information about a running process
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {
+    #[allow(dead_code)]
     pub pid: u32,
     pub name: String,
     pub memory_kb: u64,
@@ -145,6 +146,7 @@ pub fn kill_processes(process_names: &[String]) -> KillReport {
 }
 
 /// Check if a process name would be blocked by the safety blocklist
+#[allow(dead_code)]
 pub fn would_be_protected(process_name: &str) -> bool {
     is_protected(process_name)
 }

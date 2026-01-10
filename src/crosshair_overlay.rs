@@ -97,6 +97,7 @@ pub fn start_overlay(
 }
 
 /// Kill all running crosshair processes (can be called without a handle)
+#[allow(dead_code)]
 pub fn kill_all_crosshairs() {
     #[cfg(windows)]
     {

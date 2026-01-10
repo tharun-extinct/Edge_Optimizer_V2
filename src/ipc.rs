@@ -15,6 +15,7 @@ use windows::Win32::{
 };
 
 /// Named pipe path for IPC
+#[allow(dead_code)]
 pub const PIPE_NAME: &str = r"\\.\pipe\EdgeOptimizerIPC";
 
 /// Messages from Settings to Runner
@@ -48,11 +49,13 @@ pub enum TrayToGui {
 /// Named Pipe Server (Runner side)
 /// Receives messages from Settings and sends messages to Settings
 #[cfg(windows)]
+#[allow(dead_code)]
 pub struct NamedPipeServer {
     pipe_handle: HANDLE,
 }
 
 #[cfg(windows)]
+#[allow(dead_code)]
 impl NamedPipeServer {
     /// Create a new named pipe server (Runner side)
     pub fn new() -> Result<Self> {
@@ -174,11 +177,13 @@ impl Drop for NamedPipeServer {
 /// Named Pipe Client (Settings side)
 /// Connects to Runner and exchanges messages
 #[cfg(windows)]
+#[allow(dead_code)]
 pub struct NamedPipeClient {
     pipe_handle: HANDLE,
 }
 
 #[cfg(windows)]
+#[allow(dead_code)]
 impl NamedPipeClient {
     /// Connect to the named pipe server (Runner)
     pub fn connect() -> Result<Self> {
@@ -278,6 +283,7 @@ impl Drop for NamedPipeClient {
 use std::sync::mpsc::{Sender, Receiver};
 
 /// Channels held by the GUI side (legacy - will be removed)
+#[allow(dead_code)]
 pub struct GuiChannels {
     pub to_tray: Sender<GuiToTray>,
     pub from_tray: Receiver<TrayToGui>,

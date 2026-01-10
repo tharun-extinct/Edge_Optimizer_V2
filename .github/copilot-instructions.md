@@ -39,7 +39,9 @@ description: High-performance RUST-based gaming optimization application
 
 - Always use mermaid code blocks to represent flowcharts, diagrams, and other visual representations.
 
-
+**For Refactoring code:**
+- Only delete if the files or Functions aren't called /used anywhere
+- Delete Only if it's in the build error logs 
 
 Before answering:
 1. Query the memory MCP for related project decisions

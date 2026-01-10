@@ -72,6 +72,7 @@ pub enum Message {
     // Tray events
     TrayTick,
     TrayProfileSelected(String),
+    #[allow(dead_code)]
     TrayDeactivate,
     TrayExit,
 }
@@ -1012,7 +1013,7 @@ impl Application for GameOptimizer {
 }
 
 impl GameOptimizer {
-    fn render_process_selector(&self) -> Element<Message> {
+    fn render_process_selector(&self) -> Element<'_, Message> {
         let filter_lower = self.process_filter.to_lowercase();
         
         let mut seen: HashSet<String> = HashSet::new();

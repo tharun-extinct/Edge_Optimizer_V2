@@ -42,6 +42,7 @@ pub fn validate_crosshair_image(path: &PathBuf) -> Result<()> {
 }
 
 /// Load and convert image to RGBA8 for preview/rendering
+#[allow(dead_code)]
 pub fn load_crosshair_image(path: &PathBuf) -> Result<(Vec<u32>, u32, u32)> {
     validate_crosshair_image(path)?;
     
