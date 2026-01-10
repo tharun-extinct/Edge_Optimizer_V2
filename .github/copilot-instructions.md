@@ -37,7 +37,6 @@ description: High-performance RUST-based gaming optimization application
 
 - For referring latest document and resolving package error use Context7 MCP.
 
-- Always use mermaid code blocks to represent flowcharts, diagrams, and other visual representations.
 
 **For Refactoring code:**
 - Only delete if the files or Functions aren't called /used anywhere

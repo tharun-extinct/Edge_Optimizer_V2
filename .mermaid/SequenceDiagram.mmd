@@ -1,0 +1,143 @@
+sequenceDiagram
+    participant User
+    participant Main
+    participant GUI
+    participant TrayManager
+    participant FlyoutWindow
+    participant IPC
+    participant ProcessManager
+    participant CrosshairProcess
+    participant Config
+    participant ProfileStore
+
+    %% Application Startup
+    rect rgb(240, 248, 255)
+        Note over Main: Application Startup
+        Main->>Main: Check command line args
+        alt Tray-only mode
+            Main->>Config: Load configuration
+            Main->>ProfileStore: Load profiles
+            Main->>IPC: Create channels
+            Main->>TrayManager: Start tray_flyout_thread
+            TrayManager->>TrayManager: Create system tray icon
+            TrayManager->>TrayManager: Set up event handlers
+            Note over TrayManager: Tray-only mode: Profile activation not fully implemented
+        else Full GUI mode
+            Main->>GUI: gui::run()
+            GUI->>Config: Load configuration
+            GUI->>ProfileStore: Load profiles
+            GUI->>TrayManager: Create integrated tray
+            GUI->>GUI: Start Iced application
+        end
+    end
+
+    %% Tray Icon Interactions
+    rect rgb(255, 248, 220)
+        Note over User,TrayManager: Tray Icon Interactions
+        User->>TrayManager: Left click (single)
+        TrayManager->>TrayManager: Start single-click timer
+        TrayManager->>TrayManager: Wait 500ms for double-click
+        TrayManager->>FlyoutWindow: Show flyout menu
+        FlyoutWindow->>FlyoutWindow: Display profile list
+        User->>FlyoutWindow: Click profile
+        FlyoutWindow->>IPC: Send ActivateProfile message
+        alt Full GUI mode
+            IPC->>GUI: Forward profile activation
+            GUI->>GUI: Execute profile activation
+        else Tray-only mode
+            IPC->>Main: Forward to main thread
+            Note over Main: TODO: Implement profile activation logic
+        end
+    end
+
+    %% Profile Activation Flow
+    rect rgb(240, 255, 240)
+        Note over GUI,ProcessManager: Profile Activation (Full GUI Mode)
+        GUI->>ProfileStore: Get profile details
+        GUI->>ProcessManager: Kill unwanted processes
+        ProcessManager->>ProcessManager: List running processes
+        ProcessManager->>ProcessManager: Filter protected processes
+        ProcessManager->>ProcessManager: Kill selected processes
+        ProcessManager->>GUI: Return kill report
+
+        alt Crosshair enabled
+            GUI->>CrosshairProcess: Start overlay process
+            CrosshairProcess->>CrosshairProcess: Load crosshair image
+            CrosshairProcess->>CrosshairProcess: Create layered window
+            CrosshairProcess->>CrosshairProcess: Position with offset
+            CrosshairProcess->>CrosshairProcess: Display overlay
+        end
+    end
+
+    %% Tray Menu Actions
+    rect rgb(255, 240, 245)
+        Note over User,GUI: Tray Menu Actions
+        User->>TrayManager: Right click
+        TrayManager->>TrayManager: Show context menu
+        User->>TrayManager: Select "Open Settings"
+        TrayManager->>IPC: Send OpenSettings
+        IPC->>GUI: Forward to GUI
+        GUI->>GUI: Bring window to front
+
+        User->>TrayManager: Select "Exit"
+        TrayManager->>IPC: Send Exit
+        IPC->>Main: Forward exit signal
+        Main->>Main: Shutdown application
+    end
+
+    %% IPC Communication Details
+    rect rgb(248, 248, 255)
+        Note over IPC: IPC Message Types
+        GUI->>IPC: ProfilesUpdated
+        IPC->>TrayManager: Update tray profiles
+        GUI->>IPC: ActiveProfileChanged
+        IPC->>TrayManager: Update active profile
+        TrayManager->>IPC: ActivateProfile
+        IPC->>GUI: Profile selection
+        TrayManager->>IPC: OpenSettings
+        IPC->>GUI: Show settings window
+    end
+
+    %% Crosshair Process Lifecycle
+    rect rgb(255, 250, 240)
+        Note over CrosshairProcess: Crosshair Overlay Lifecycle
+        CrosshairProcess->>CrosshairProcess: Parse command line args
+        CrosshairProcess->>CrosshairProcess: Load PNG image
+        CrosshairProcess->>CrosshairProcess: Convert to BGRA with premultiplied alpha
+        CrosshairProcess->>CrosshairProcess: Create layered window (WS_EX_LAYERED)
+        CrosshairProcess->>CrosshairProcess: Set window position with offsets
+        CrosshairProcess->>CrosshairProcess: UpdateLayeredWindow for transparency
+        CrosshairProcess->>CrosshairProcess: Run message loop
+        Note right of CrosshairProcess: Survives main app closure
+    end
+
+    %% Process Management Details
+    rect rgb(255, 245, 245)
+        Note over ProcessManager: Process Management
+        ProcessManager->>ProcessManager: Use sysinfo::System
+        ProcessManager->>ProcessManager: Get process list with CPU/memory
+        ProcessManager->>ProcessManager: Filter by user selection
+        ProcessManager->>ProcessManager: Check protected process list
+        ProcessManager->>ProcessManager: Kill processes (taskkill /F /IM)
+        ProcessManager->>ProcessManager: Generate kill report
+    end
+
+    %% Configuration and Profiles
+    rect rgb(245, 255, 250)
+        Note over Config,ProfileStore: Configuration Management
+        Config->>Config: Load from config.json
+        ProfileStore->>ProfileStore: Load profiles from profiles.json
+        GUI->>ProfileStore: Save profile changes
+        GUI->>Config: Update active profile
+        ProfileStore->>ProfileStore: Validate profile data
+        ProfileStore->>ProfileStore: Check image paths and extensions
+    end
+
+    %% Future Features (Not Yet Implemented)
+    rect rgb(255, 255, 224)
+        Note over GUI: Planned Features
+        Note over GUI: - Network performance optimization
+        Note over GUI: - Power plan tweaking
+        Note over GUI: - Ethernet Energy Efficient mode disabling
+        Note over GUI: - Fan speed control
+    end
