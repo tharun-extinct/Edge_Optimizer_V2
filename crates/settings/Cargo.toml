@@ -1,0 +1,17 @@
+[package]
+name = "edge_optimizer_settings"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "EdgeOptimizer_Settings"
+path = "src/main.rs"
+
+[dependencies]
+edge_optimizer_core = { path = "../core" }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = { workspace = true }

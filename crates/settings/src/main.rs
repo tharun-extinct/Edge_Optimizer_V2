@@ -11,11 +11,9 @@
 use std::process::{Command, Stdio};
 use std::path::Path;
 
-// Import modules from the workspace
-use gaming_optimizer::gui;
+use edge_optimizer_core::gui;
 
 fn main() -> anyhow::Result<()> {
-    // Initialize tracing
     tracing_subscriber::fmt::init();
     
     tracing::info!("EdgeOptimizer.Settings starting...");
@@ -31,10 +29,9 @@ fn main() -> anyhow::Result<()> {
 
 /// Spawn the EdgeOptimizer.Runner process to manage the system tray
 fn spawn_runner_process() {
-    // Find the runner executable next to this executable
     if let Ok(exe_path) = std::env::current_exe() {
         let exe_dir = exe_path.parent().unwrap_or(Path::new("."));
-        let runner_path = exe_dir.join("edge_optimizer_runner.exe");
+        let runner_path = exe_dir.join("EdgeOptimizer_Runner.exe");
         
         if runner_path.exists() {
             tracing::info!("Spawning Runner process: {:?}", runner_path);

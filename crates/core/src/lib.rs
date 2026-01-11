@@ -1,6 +1,6 @@
-//! EdgeOptimizer Library
+//! Edge Optimizer Core Library
 //! 
-//! Core functionality shared between Settings, Runner, and Crosshair processes
+//! Shared functionality for all Edge Optimizer processes
 
 pub mod common_apps;
 pub mod config;

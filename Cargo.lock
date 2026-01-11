@@ -1032,6 +1032,73 @@ dependencies = [
 ]
 
 [[package]]
+name = "edge_optimizer_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "crossbeam",
+ "directories",
+ "iced",
+ "image",
+ "once_cell",
+ "open",
+ "parking_lot 0.12.5",
+ "rfd",
+ "serde",
+ "serde_json",
+ "softbuffer",
+ "sysinfo",
+ "thiserror 1.0.69",
+ "tracing",
+ "tracing-subscriber",
+ "tray-icon",
+ "winapi",
+ "windows",
+ "winit",
+]
+
+[[package]]
+name = "edge_optimizer_crosshair"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "edge_optimizer_core",
+ "image",
+ "softbuffer",
+ "tracing",
+ "tracing-subscriber",
+ "windows",
+ "winit",
+ "winresource",
+]
+
+[[package]]
+name = "edge_optimizer_runner"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "edge_optimizer_core",
+ "open",
+ "tracing",
+ "tracing-subscriber",
+ "tray-icon",
+ "windows",
+ "winresource",
+]
+
+[[package]]
+name = "edge_optimizer_settings"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "edge_optimizer_core",
+ "tracing",
+ "tracing-subscriber",
+ "winresource",
+]
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1363,34 +1430,6 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
-]
-
-[[package]]
-name = "gaming_optimizer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bincode",
- "crossbeam",
- "directories",
- "iced",
- "image",
- "once_cell",
- "open",
- "parking_lot 0.12.5",
- "rfd",
- "serde",
- "serde_json",
- "softbuffer",
- "sysinfo",
- "thiserror 1.0.69",
- "tracing",
- "tracing-subscriber",
- "tray-icon",
- "winapi",
- "windows",
- "winit",
- "winresource",
 ]
 
 [[package]]

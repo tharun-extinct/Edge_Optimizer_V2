@@ -13,8 +13,8 @@ use std::time::{Duration, Instant};
 use anyhow::{Result, Context};
 use std::process::Command;
 
-// Import from library crate
-use gaming_optimizer::{
+// Import from core library crate
+use edge_optimizer_core::{
     config, profile, tray_flyout::TrayFlyoutManager, 
     ipc::{GuiToTray, NamedPipeServer},
 };

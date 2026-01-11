@@ -1,81 +1,78 @@
-[package]
-name = "gaming_optimizer"
+[workspace]
+members = [
+    "crates/core",
+    "crates/settings",
+    "crates/runner",
+    "crates/crosshair",
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
 
-# Remove default binary - we use explicit [[bin]] entries only
-autobins = false
-
-[[bin]]
-name = "edge_optimizer_settings"
-path = "src/bin/settings.rs"
-
-[[bin]]
-name = "edge_optimizer_runner"
-path = "src/bin/runner.rs"
-
-[[bin]]
-name = "edge_optimizer_crosshair"
-path = "src/bin/crosshair.rs"
-
-[dependencies]
+[workspace.dependencies]
 # GUI & Window Management
 iced = { version = "0.12", features = ["debug", "image"] }
-tray-icon = "0.14"           # System tray with menu support (Windows compatible)
-winit = "0.29"               # Window creation for overlay
-softbuffer = "0.4"           # Software rendering for overlay window
+tray-icon = "0.14"
+winit = "0.29"
+softbuffer = "0.4"
 
 # Image & File Handling
-image = "0.24"               # PNG image loading
-rfd = "0.14"                 # File dialogs (cross-platform)
+image = "0.24"
+rfd = "0.14"
 
 # System & Process Management
-sysinfo = "0.30"             # Process enumeration and management
-parking_lot = "0.12"         # Synchronization primitives
+sysinfo = "0.30"
+parking_lot = "0.12"
 
 # Data & Serialization
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"           # JSON serialization for profiles
-directories = "5.0"          # Cross-platform user data directory
-open = "5.0"                 # Open URLs in default browser
+serde_json = "1.0"
+directories = "5.0"
+open = "5.0"
 
 # Error Handling
-anyhow = "1.0"              # Error handling
-thiserror = "1.0"           # Derive macro for error types
+anyhow = "1.0"
+thiserror = "1.0"
 
 # Threading & IPC
-crossbeam = "0.8"           # Multi-producer, multi-consumer channels
-once_cell = "1.19"          # Lazy static initialization
-bincode = "1.3"             # Binary serialization for IPC messages
+crossbeam = "0.8"
+once_cell = "1.19"
+bincode = "1.3"
 
 # Logging
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
-[target.'cfg(windows)'.dependencies]
-windows = { version = "0.52", features = [
+# Windows-specific
+winresource = "0.1"
+
+[workspace.dependencies.windows]
+version = "0.52"
+features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
-    "Win32_Graphics_GdiPlus",     # GDI+ for anti-aliased rendering
+    "Win32_Graphics_GdiPlus",
     "Win32_Graphics_Dwm",
     "Win32_System_Threading",
     "Win32_System_LibraryLoader",
-    "Win32_Storage_FileSystem",   # Named pipes for IPC
-    "Win32_System_Pipes",         # Pipe APIs
-    "Win32_Security",             # Security attributes for pipes
+    "Win32_Storage_FileSystem",
+    "Win32_System_Pipes",
+    "Win32_Security",
     "Win32_UI_WindowsAndMessaging",
-    "Win32_UI_HiDpi",               # DPI awareness functions
+    "Win32_UI_HiDpi",
     "Win32_UI_Shell",
     "Win32_UI_Controls",
-] }
-winapi = { version = "0.3", features = ["shellapi", "shlobj", "combaseapi"] }
+]
 
-[target.'cfg(windows)'.build-dependencies]
-winresource = "0.1"
+[workspace.dependencies.winapi]
+version = "0.3"
+features = ["shellapi", "shlobj", "combaseapi"]
 
 [profile.release]
-opt-level = 3           # Maximum optimization
-lto = true             # Link-time optimization
-codegen-units = 1      # Better optimization, slower compile
-strip = true           # Strip symbols for smaller binary
-panic = "abort"        # Smaller binary, faster panic
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

@@ -77,7 +77,7 @@ UI elements can only be modified on the thread that created them. DispatcherQueu
 - Runner uses Win32 message loop to listen for tray icon clicks
 - Tray click (Runner) → IPC message → DispatcherQueue → Show flyout (UI thread)
 
-
+---
 
 **For Refactoring code:**
 - Only delete if the files or Functions aren't called /used anywhere

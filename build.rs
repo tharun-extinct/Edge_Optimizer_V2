@@ -4,44 +4,41 @@
 fn main() {
     #[cfg(windows)]
     {
-        // Get the binary name being built
-        let target = std::env::var("CARGO_BIN_NAME").unwrap_or_default();
+        use std::path::Path;
+        use std::env;
         
-        let mut res = winresource::WindowsResource::new();
+        let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+        let out_dir = env::var("OUT_DIR").unwrap();
         
-        // Set common metadata
-        res.set("ProductName", "Edge Optimizer");
-        res.set("CompanyName", "Edge Optimizer");
-        res.set("LegalCopyright", "Copyright © 2026");
-        res.set("ProductVersion", env!("CARGO_PKG_VERSION"));
-        res.set("FileVersion", env!("CARGO_PKG_VERSION"));
+        // Determine which binary based on OUT_DIR path
+        let is_settings = out_dir.contains("edge_optimizer_settings");
+        let is_runner = out_dir.contains("edge_optimizer_runner");
+        let is_crosshair = out_dir.contains("edge_optimizer_crosshair");
         
-        // Set binary-specific metadata (this shows in Task Manager)
-        match target.as_str() {
-            "edge_optimizer_settings" => {
-                res.set("FileDescription", "EdgeOptimizer.Settings");
-                res.set("InternalName", "EdgeOptimizer.Settings");
-                res.set("OriginalFilename", "EdgeOptimizer.Settings.exe");
-            }
-            "edge_optimizer_runner" => {
-                res.set("FileDescription", "EdgeOptimizer.Runner");
-                res.set("InternalName", "EdgeOptimizer.Runner");
-                res.set("OriginalFilename", "EdgeOptimizer.Runner.exe");
-            }
-            "edge_optimizer_crosshair" => {
-                res.set("FileDescription", "EdgeOptimizer.Crosshair");
-                res.set("InternalName", "EdgeOptimizer.Crosshair");
-                res.set("OriginalFilename", "EdgeOptimizer.Crosshair.exe");
-            }
-            _ => {
-                res.set("FileDescription", "Edge Optimizer");
-                res.set("InternalName", "EdgeOptimizer");
-            }
-        }
+        let rc_file = if is_settings {
+            "resources/settings.rc"
+        } else if is_runner {
+            "resources/runner.rc"
+        } else if is_crosshair {
+            "resources/crosshair.rc"
+        } else {
+            // Default/library build - use settings
+            "resources/settings.rc"
+        };
         
-        // Compile the resource
-        if let Err(e) = res.compile() {
-            eprintln!("Warning: Failed to compile Windows resources: {}", e);
+        println!("cargo:warning=Using resource file: {}", rc_file);
+        
+        let rc_path = Path::new(&manifest_dir).join(rc_file);
+        
+        if rc_path.exists() {
+            let mut res = winresource::WindowsResource::new();
+            res.set_resource_file(rc_path.to_str().unwrap());
+            
+            if let Err(e) = res.compile() {
+                println!("cargo:warning=Failed to compile Windows resources: {}", e);
+            }
+        } else {
+            println!("cargo:warning=Resource file not found: {:?}", rc_path);
         }
     }
 }
