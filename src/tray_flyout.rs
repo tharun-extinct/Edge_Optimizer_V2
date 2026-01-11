@@ -343,16 +343,32 @@ pub fn run_tray_flyout_thread(
                                         tray.pending_single_click = false;
                                         tray.last_click_time = None;
                                         
+                                        // Close flyout if open
+                                        if tray.flyout.is_some() {
+                                            println!("[TRAY] Closing flyout to open full GUI");
+                                            tray.hide_flyout();
+                                        }
+                                        
                                         // Send message to open GUI
                                         let _ = channels.to_gui.send(crate::ipc::TrayToGui::OpenSettings);
                                         continue;
                                     }
                                 }
                                 
-                                // First click - start timer for single-click
-                                println!("[TRAY] First click detected, waiting for potential double-click");
+                                // Single click - show flyout immediately (instant response)
+                                println!("[TRAY] Click detected - toggling flyout immediately");
                                 tray.last_click_time = Some(now);
-                                tray.pending_single_click = true;
+                                tray.pending_single_click = false; // No delay needed
+                                
+                                if tray.flyout.is_some() {
+                                    println!("[TRAY] Hiding existing flyout");
+                                    tray.hide_flyout();
+                                } else {
+                                    println!("[TRAY] Showing new flyout");
+                                    if let Err(e) = tray.show_flyout() {
+                                        eprintln!("[TRAY] Failed to show flyout: {}", e);
+                                    }
+                                }
                             }
                         }
                         _ => {}
@@ -361,26 +377,7 @@ pub fn run_tray_flyout_thread(
                 Err(_) => {}
             }
             
-            // Check if single-click timer expired (500ms passed)
-            if tray.pending_single_click {
-                if let Some(last_time) = tray.last_click_time {
-                    if Instant::now().duration_since(last_time).as_millis() >= 500 {
-                        // Single click confirmed - show flyout
-                        println!("[TRAY] Single click confirmed - toggling flyout");
-                        tray.pending_single_click = false;
-                        
-                        if tray.flyout.is_some() {
-                            println!("[TRAY] Hiding existing flyout");
-                            tray.hide_flyout();
-                        } else {
-                            println!("[TRAY] Showing new flyout");
-                            if let Err(e) = tray.show_flyout() {
-                                eprintln!("[TRAY] Failed to show flyout: {}", e);
-                            }
-                        }
-                    }
-                }
-            }
+            // No need for delayed single-click timer anymore - flyout shows immediately
             
             // Check for menu events
             match menu_rx.try_recv() {
