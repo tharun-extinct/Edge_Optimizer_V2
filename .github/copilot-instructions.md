@@ -72,7 +72,7 @@ UI elements can only be modified on the thread that created them. DispatcherQueu
 - Runner uses Win32 message loop to listen for tray icon clicks
 - Runner manages tray, sends IPC to Settings (via Named Pipes), Settings uses DispatcherQueue to marshal to UI thread → Show flyout (UI thread)
 
-    ### Flyout Behavior
+    ### Tray Icon Behavior
         - Right-click → Shows traditional context menu (Settings [Double clicks opens Main GUI], Documentation, Report Bug, Close)
         - Left single-click → Opens flyout window
         - Left double-click → Opens full Settings window (If already open, brings to front)
@@ -134,7 +134,3 @@ Before answering:
 2. If missing, ask me before proceeding
 3. Store new decisions in memory after the response
 
-
-Documentation Links:
--[Windows-rs](https://github.com/microsoft/windows-rs)
--[Iced GUI](https://github.com/iced-rs/iced)

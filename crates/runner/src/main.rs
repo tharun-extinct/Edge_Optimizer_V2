@@ -159,14 +159,14 @@ fn main() -> Result<()> {
                             if let Err(e) = pipe_server.send(&TrayToGui::ShowFlyout) {
                                 tracing::warn!("Failed to send ShowFlyout via IPC: {}", e);
                                 settings_connected = false;
-                                // Fallback: spawn Settings with --show-flyout flag
-                                if let Err(e) = spawn_settings_window(Some("--show-flyout")) {
+                                // Fallback: spawn Settings in flyout-only mode (hidden main window)
+                                if let Err(e) = spawn_settings_window(Some("--flyout-only")) {
                                     tracing::error!("Failed to spawn Settings with flyout: {}", e);
                                 }
                             }
                         } else {
-                            // Settings not connected, spawn it with flyout flag
-                            if let Err(e) = spawn_settings_window(Some("--show-flyout")) {
+                            // Settings not connected, spawn it in flyout-only mode
+                            if let Err(e) = spawn_settings_window(Some("--flyout-only")) {
                                 tracing::error!("Failed to spawn Settings with flyout: {}", e);
                             }
                         }

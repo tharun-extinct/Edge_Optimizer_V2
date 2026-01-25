@@ -42,6 +42,8 @@ pub struct GuiFlags {
     pub show_flyout: bool,
     /// Bring main window to front
     pub bring_to_front: bool,
+    /// Flyout-only mode: main window starts hidden
+    pub flyout_only: bool,
     /// IPC client (will be moved into the listener thread)
     pub ipc_client: Option<std::sync::Arc<Mutex<NamedPipeClient>>>,
 }
@@ -1161,14 +1163,20 @@ pub fn run_with_ipc(
     let flags = GuiFlags {
         show_flyout: startup_flags.show_flyout,
         bring_to_front: startup_flags.bring_to_front,
+        flyout_only: startup_flags.flyout_only,
         ipc_client: ipc_arc,
     };
+
+    // In flyout-only mode, start with main window hidden
+    let window_visible = !startup_flags.flyout_only;
+    println!("[GUI] Flyout-only mode: {}, window visible: {}", startup_flags.flyout_only, window_visible);
 
     let result = GameOptimizer::run(Settings {
         flags,
         window: iced::window::Settings {
             size: iced::Size::new(1000.0, 750.0),
             min_size: Some(iced::Size::new(900.0, 650.0)),
+            visible: window_visible,
             ..Default::default()
         },
         ..Default::default()

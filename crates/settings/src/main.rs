@@ -57,6 +57,10 @@ fn parse_args() -> StartupFlags {
         match arg.as_str() {
             "--show-flyout" => flags.show_flyout = true,
             "--bring-to-front" => flags.bring_to_front = true,
+            "--flyout-only" => {
+                flags.flyout_only = true;
+                flags.show_flyout = true; // flyout-only implies show flyout
+            }
             _ => {}
         }
     }

@@ -29,4 +29,7 @@ pub struct StartupFlags {
     pub show_flyout: bool,
     /// Bring main window to front (triggered by Runner)
     pub bring_to_front: bool,
+    /// Flyout-only mode: Start with main window hidden, only show flyout
+    /// Used when Runner spawns Settings for single-click tray action
+    pub flyout_only: bool,
 }
