@@ -37,6 +37,12 @@ pub enum TrayToGui {
     ToggleOverlay,
     /// User requested to open settings/GUI
     OpenSettings,
+    /// User single-clicked tray icon - show flyout window
+    ShowFlyout,
+    /// User clicked away or toggled - hide flyout window
+    HideFlyout,
+    /// User double-clicked tray icon - bring main window to front
+    BringMainToFront,
     /// User requested exit
     Exit,
 }
@@ -173,6 +179,7 @@ impl Drop for NamedPipeServer {
 /// Connects to Runner and exchanges messages
 #[cfg(windows)]
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct NamedPipeClient {
     pipe_handle: HANDLE,
 }
@@ -180,13 +187,21 @@ pub struct NamedPipeClient {
 #[cfg(windows)]
 #[allow(dead_code)]
 impl NamedPipeClient {
-    /// Connect to the named pipe server (Runner)
+    /// Connect to the named pipe server (Runner) with exponential backoff
     pub fn connect() -> Result<Self> {
+        Self::connect_with_timeout(Duration::from_secs(3))
+    }
+
+    /// Connect to the named pipe server with custom timeout
+    pub fn connect_with_timeout(timeout: Duration) -> Result<Self> {
         let pipe_name: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();
+        let start = std::time::Instant::now();
+        let mut attempt = 0u32;
 
         unsafe {
-            // Try to connect with timeout
-            for _ in 0..10 {
+            // Try to connect with exponential backoff
+            while start.elapsed() < timeout {
+                attempt += 1;
                 let pipe_handle = CreateFileW(
                     windows::core::PCWSTR(pipe_name.as_ptr()),
                     (FILE_GENERIC_READ.0 | FILE_GENERIC_WRITE.0).into(),
@@ -195,17 +210,58 @@ impl NamedPipeClient {
                     OPEN_EXISTING,
                     FILE_ATTRIBUTE_NORMAL,
                     HANDLE::default(),
-                )?;
+                );
+
+                let pipe_handle = match pipe_handle {
+                    Ok(h) => h,
+                    Err(_) => {
+                        // Exponential backoff: 50ms, 100ms, 200ms, ... capped at 500ms
+                        let delay = Duration::from_millis((50 * (1 << attempt.min(4))) as u64);
+                        std::thread::sleep(delay);
+                        continue;
+                    }
+                };
 
                 if !pipe_handle.is_invalid() {
-                    tracing::info!("Connected to named pipe: {}", PIPE_NAME);
+                    tracing::info!(
+                        "Connected to named pipe: {} (attempt {})",
+                        PIPE_NAME,
+                        attempt
+                    );
                     return Ok(Self { pipe_handle });
                 }
 
-                std::thread::sleep(Duration::from_millis(100));
+                // Exponential backoff
+                let delay = Duration::from_millis((50 * (1 << attempt.min(4))) as u64);
+                std::thread::sleep(delay);
             }
 
-            anyhow::bail!("Failed to connect to named pipe after retries");
+            anyhow::bail!("Failed to connect to named pipe after {:?}", timeout);
+        }
+    }
+
+    /// Try to connect without blocking (single attempt)
+    pub fn try_connect() -> Result<Option<Self>> {
+        let pipe_name: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();
+
+        unsafe {
+            let pipe_handle = CreateFileW(
+                windows::core::PCWSTR(pipe_name.as_ptr()),
+                (FILE_GENERIC_READ.0 | FILE_GENERIC_WRITE.0).into(),
+                FILE_SHARE_NONE,
+                None,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                HANDLE::default(),
+            );
+
+            match pipe_handle {
+                Ok(h) if !h.is_invalid() => {
+                    tracing::info!("Connected to named pipe: {}", PIPE_NAME);
+                    Ok(Some(Self { pipe_handle: h }))
+                }
+                _ => Ok(None), // Not available yet
+            }
         }
     }
 

@@ -2,10 +2,14 @@
 //!
 //! This process manages:
 //! - System tray icon with context menu (right-click)
-//! - Flyout window display (left single-click)
-//! - Settings window spawn (left double-click)
 //! - IPC communication with Settings process via named pipes
 //! - Win32 message loop for tray icon events
+//!
+//! Architecture:
+//! - Runner owns the tray icon and sends IPC messages to Settings
+//! - Settings owns the Flyout and MainWindow, listens for IPC
+//! - On single-click: Runner sends ShowFlyout via IPC
+//! - On double-click: Runner sends BringMainToFront via IPC (or spawns Settings if not running)
 
 #![windows_subsystem = "windows"]
 
@@ -16,9 +20,8 @@ use std::time::{Duration, Instant};
 // Import from core library crate
 use edge_optimizer_core::{
     config,
-    ipc::{GuiToTray, NamedPipeServer},
-    profile,
-    tray_flyout::TrayFlyoutManager,
+    ipc::{GuiToTray, NamedPipeServer, TrayToGui},
+    tray_icon::TrayIconManager,
 };
 
 use tray_icon::menu::MenuEvent;
@@ -30,27 +33,22 @@ fn main() -> Result<()> {
 
     tracing::info!("EdgeOptimizer.Runner starting...");
 
-    // Load configuration
+    // Load configuration for active profile tooltip
     let app_config = config::load_config();
 
-    // Load profiles
-    let data_dir = config::get_data_directory()?;
-    let profiles = profile::load_profiles(&data_dir)?;
+    // Create minimal tray icon manager (no flyout - that's owned by Settings)
+    let mut tray = TrayIconManager::new(app_config.active_profile.clone())
+        .context("Failed to create tray icon manager")?;
 
-    tracing::info!("Loaded {} profiles", profiles.len());
-
-    // Create tray manager
-    let mut tray = TrayFlyoutManager::new(profiles, app_config.active_profile.clone())
-        .context("Failed to create tray manager")?;
-
-    tracing::info!("Tray manager created");
+    tracing::info!("Tray icon created");
 
     // Initialize named pipe server for IPC with Settings process
     let pipe_server = NamedPipeServer::new().context("Failed to create named pipe server")?;
 
     tracing::info!("Named pipe server created, waiting for Settings to connect...");
 
-    // Note: We don't block waiting for connection here, we'll check for messages in the loop
+    // Track whether Settings is connected (for fallback spawning)
+    let mut settings_connected = false;
 
     // Set up event handlers for tray icon and menu
     let (event_tx, event_rx) = std::sync::mpsc::channel::<TrayIconEvent>();
@@ -105,14 +103,34 @@ fn main() -> Result<()> {
                             };
 
                             if is_double_click {
-                                // Double-click: Open full Settings window
-                                tracing::info!("Double-click detected - spawning Settings window");
+                                // Double-click: Bring Settings main window to front
+                                tracing::info!(
+                                    "Double-click detected - bringing Settings to front"
+                                );
                                 pending_single_click = false;
                                 last_click_time = None;
 
-                                // Spawn Settings process
-                                if let Err(e) = spawn_settings_window() {
-                                    tracing::error!("Failed to spawn Settings window: {}", e);
+                                // Send IPC to Settings, fallback to spawning if not connected
+                                if settings_connected {
+                                    if let Err(e) = pipe_server.send(&TrayToGui::BringMainToFront) {
+                                        tracing::warn!(
+                                            "Failed to send BringMainToFront via IPC: {}",
+                                            e
+                                        );
+                                        settings_connected = false;
+                                        // Fallback: spawn Settings
+                                        if let Err(e) = spawn_settings_window(None) {
+                                            tracing::error!(
+                                                "Failed to spawn Settings window: {}",
+                                                e
+                                            );
+                                        }
+                                    }
+                                } else {
+                                    // Settings not connected, spawn it
+                                    if let Err(e) = spawn_settings_window(None) {
+                                        tracing::error!("Failed to spawn Settings window: {}", e);
+                                    }
                                 }
                             } else {
                                 // First click: Start timer for single-click
@@ -132,15 +150,24 @@ fn main() -> Result<()> {
             if pending_single_click {
                 if let Some(last_time) = last_click_time {
                     if Instant::now().duration_since(last_time).as_millis() >= 500 {
-                        // Single-click confirmed: Toggle flyout
-                        tracing::info!("Single-click confirmed - toggling flyout");
+                        // Single-click confirmed: Send ShowFlyout via IPC
+                        tracing::info!("Single-click confirmed - sending ShowFlyout via IPC");
                         pending_single_click = false;
 
-                        if tray.is_flyout_visible() {
-                            tray.hide_flyout();
+                        // Send IPC to Settings to show flyout
+                        if settings_connected {
+                            if let Err(e) = pipe_server.send(&TrayToGui::ShowFlyout) {
+                                tracing::warn!("Failed to send ShowFlyout via IPC: {}", e);
+                                settings_connected = false;
+                                // Fallback: spawn Settings with --show-flyout flag
+                                if let Err(e) = spawn_settings_window(Some("--show-flyout")) {
+                                    tracing::error!("Failed to spawn Settings with flyout: {}", e);
+                                }
+                            }
                         } else {
-                            if let Err(e) = tray.show_flyout() {
-                                tracing::error!("Failed to show flyout: {}", e);
+                            // Settings not connected, spawn it with flyout flag
+                            if let Err(e) = spawn_settings_window(Some("--show-flyout")) {
+                                tracing::error!("Failed to spawn Settings with flyout: {}", e);
                             }
                         }
                     }
@@ -150,20 +177,33 @@ fn main() -> Result<()> {
             // Process menu events (right-click context menu)
             if let Ok(event) = menu_rx.try_recv() {
                 if event.id == tray.menu_item_settings {
-                    tracing::info!("Settings menu clicked - spawning Settings window");
-                    if let Err(e) = spawn_settings_window() {
-                        tracing::error!("Failed to spawn Settings window: {}", e);
+                    tracing::info!("Settings menu clicked - opening Settings window");
+                    // Send IPC or spawn
+                    if settings_connected {
+                        if let Err(e) = pipe_server.send(&TrayToGui::BringMainToFront) {
+                            tracing::warn!("Failed to send BringMainToFront via IPC: {}", e);
+                            settings_connected = false;
+                            if let Err(e) = spawn_settings_window(None) {
+                                tracing::error!("Failed to spawn Settings window: {}", e);
+                            }
+                        }
+                    } else {
+                        if let Err(e) = spawn_settings_window(None) {
+                            tracing::error!("Failed to spawn Settings window: {}", e);
+                        }
                     }
                 } else if event.id == tray.menu_item_docs {
                     tracing::info!("Documentation menu clicked");
-                    let _ = open::that("https://github.com/yourusername/gaming_optimizer#readme");
+                    let _ = open::that("https://github.com/yourusername/EdgeOptimizer#readme");
                 } else if event.id == tray.menu_item_bug_report {
                     tracing::info!("Bug report menu clicked");
-                    let _ =
-                        open::that("https://github.com/yourusername/gaming_optimizer/issues/new");
+                    let _ = open::that("https://github.com/yourusername/EdgeOptimizer/issues/new");
                 } else if event.id == tray.menu_item_exit {
                     tracing::info!("Exit menu clicked");
-                    // TODO: Send shutdown via IPC to Settings if running
+                    // Send shutdown to Settings if connected
+                    if settings_connected {
+                        let _ = pipe_server.send(&TrayToGui::Exit);
+                    }
                     return Ok(());
                 }
             }
@@ -171,17 +211,22 @@ fn main() -> Result<()> {
             // Poll named pipe for messages from Settings process
             match pipe_server.try_recv() {
                 Ok(Some(msg)) => {
+                    // If we received a message, Settings is connected
+                    if !settings_connected {
+                        tracing::info!("Settings process connected to IPC");
+                        settings_connected = true;
+                    }
                     match msg {
-                        GuiToTray::ProfilesUpdated(new_profiles) => {
-                            tracing::info!("Received ProfilesUpdated from Settings");
-                            tray.update_profiles(new_profiles);
-                        }
                         GuiToTray::ActiveProfileChanged(new_active) => {
                             tracing::info!(
                                 "Received ActiveProfileChanged from Settings: {:?}",
                                 new_active
                             );
                             tray.set_active_profile(new_active);
+                        }
+                        GuiToTray::ProfilesUpdated(_profiles) => {
+                            tracing::info!("Received ProfilesUpdated from Settings");
+                            // TrayIconManager doesn't need profiles, just tooltip
                         }
                         GuiToTray::OverlayVisibilityChanged(_visible) => {
                             // Not used in Runner
@@ -197,6 +242,7 @@ fn main() -> Result<()> {
                 }
                 Err(e) => {
                     tracing::warn!("Error reading from named pipe: {}", e);
+                    settings_connected = false;
                 }
             }
 
@@ -207,23 +253,75 @@ fn main() -> Result<()> {
 }
 
 /// Spawn the Settings window process
-fn spawn_settings_window() -> Result<()> {
+/// Optional flag can be passed (e.g., "--show-flyout" to immediately show flyout)
+fn spawn_settings_window(flag: Option<&str>) -> Result<()> {
+    // First check if Settings window is already running
+    if bring_existing_settings_to_front() {
+        tracing::info!("Settings window already exists, brought to front");
+        return Ok(());
+    }
+
     let exe_dir = std::env::current_exe()?
         .parent()
         .context("Failed to get executable directory")?
         .to_path_buf();
 
-    let settings_exe = exe_dir.join("edge_optimizer_settings.exe");
+    let settings_exe = exe_dir.join("EdgeOptimizer_Settings.exe");
 
     if !settings_exe.exists() {
+        // Try alternate casing
+        let alt_exe = exe_dir.join("edge_optimizer_settings.exe");
+        if alt_exe.exists() {
+            let mut cmd = Command::new(&alt_exe);
+            if let Some(f) = flag {
+                cmd.arg(f);
+            }
+            cmd.spawn().context("Failed to spawn Settings process")?;
+            tracing::info!("Settings process spawned: {:?} {:?}", alt_exe, flag);
+            return Ok(());
+        }
         anyhow::bail!("Settings executable not found: {:?}", settings_exe);
     }
 
-    Command::new(&settings_exe)
-        .spawn()
-        .context("Failed to spawn Settings process")?;
+    let mut cmd = Command::new(&settings_exe);
+    if let Some(f) = flag {
+        cmd.arg(f);
+    }
+    cmd.spawn().context("Failed to spawn Settings process")?;
 
-    tracing::info!("Settings process spawned: {:?}", settings_exe);
+    tracing::info!("Settings process spawned: {:?} {:?}", settings_exe, flag);
 
     Ok(())
+}
+
+/// Try to find and bring existing Settings window to front
+/// Returns true if window was found and brought to front
+fn bring_existing_settings_to_front() -> bool {
+    unsafe {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::*;
+
+        // Try to find Settings window by title
+        let title: Vec<u16> = "Edge Optimizer - Profile Manager\0"
+            .encode_utf16()
+            .collect();
+        let hwnd = FindWindowW(None, windows::core::PCWSTR(title.as_ptr()));
+
+        if hwnd != HWND::default() {
+            tracing::info!("Found existing Settings window, bringing to front");
+
+            // Restore if minimized
+            if IsIconic(hwnd).as_bool() {
+                let _ = ShowWindow(hwnd, SW_RESTORE);
+            }
+
+            // Bring to foreground
+            let _ = SetForegroundWindow(hwnd);
+            let _ = BringWindowToTop(hwnd);
+
+            return true;
+        }
+
+        false
+    }
 }

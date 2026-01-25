@@ -1,15 +1,21 @@
-/// ICED GUI Application Module with System Tray Integration
+/// ICED GUI Application Module
+///
+/// Architecture:
+/// - This GUI is owned by the Settings process
+/// - Runner process owns the system tray and sends IPC messages
+/// - We receive ShowFlyout/BringMainToFront commands via IPC from Runner
 mod profile_editor;
 pub mod styles;
 
 use crate::common_apps::COMMON_APPS;
 use crate::config::get_data_directory;
 use crate::crosshair_overlay::{self, OverlayHandle};
+use crate::flyout::FlyoutWindow;
 use crate::image_picker::{open_image_picker, validate_crosshair_image};
+use crate::ipc::{GuiToTray, NamedPipeClient, TrayToGui};
 use crate::process::{kill_processes, list_processes, ProcessInfo};
 use crate::profile::Profile;
 use crate::profile::{load_profiles, save_profiles};
-use crate::tray_flyout::TrayFlyoutManager;
 use iced::{
     executor,
     widget::{
@@ -19,28 +25,26 @@ use iced::{
 };
 use once_cell::sync::Lazy;
 use std::collections::{HashMap, HashSet};
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{self, Receiver};
 use std::sync::Mutex;
 use std::time::Duration;
-use std::time::Instant;
-use tray_icon::menu::MenuEvent;
-use tray_icon::{MouseButton, MouseButtonState, TrayIconEvent};
 
-/// Global channel for tray icon events
-static TRAY_EVENT_RX: Lazy<Mutex<Option<Receiver<TrayIconEvent>>>> = Lazy::new(|| Mutex::new(None));
+/// Global channel for IPC messages from Runner
+static IPC_MESSAGE_RX: Lazy<Mutex<Option<Receiver<TrayToGui>>>> = Lazy::new(|| Mutex::new(None));
 
-/// Global channel for menu events
-static MENU_EVENT_RX: Lazy<Mutex<Option<Receiver<MenuEvent>>>> = Lazy::new(|| Mutex::new(None));
-
-/// Global sender for profile activations from flyout
+/// Global sender for profile activations from flyout (flyout → GUI)
 static FLYOUT_PROFILE_RX: Lazy<Mutex<Option<Receiver<String>>>> = Lazy::new(|| Mutex::new(None));
 
-/// Track click timing for double-click detection
-static LAST_CLICK_TIME: Lazy<Mutex<Option<Instant>>> = Lazy::new(|| Mutex::new(None));
-static PENDING_SINGLE_CLICK: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
-
-/// Store menu item IDs for checking exit
-static MENU_EXIT_ID: Lazy<Mutex<Option<tray_icon::menu::MenuId>>> = Lazy::new(|| Mutex::new(None));
+/// Startup flags for the GUI application
+#[derive(Debug, Default, Clone)]
+pub struct GuiFlags {
+    /// Show flyout immediately on startup
+    pub show_flyout: bool,
+    /// Bring main window to front
+    pub bring_to_front: bool,
+    /// IPC client (will be moved into the listener thread)
+    pub ipc_client: Option<std::sync::Arc<Mutex<NamedPipeClient>>>,
+}
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -72,12 +76,17 @@ pub enum Message {
     // Fan control
     FanSpeedMaxToggled(bool),
 
-    // Tray events
-    TrayTick,
-    TrayProfileSelected(String),
+    // IPC events from Runner
+    IpcTick,
+    IpcShowFlyout,
+    IpcHideFlyout,
+    IpcBringToFront,
+    IpcExit,
+
+    // Flyout events
+    FlyoutProfileSelected(String),
     #[allow(dead_code)]
-    TrayDeactivate,
-    TrayExit,
+    FlyoutDeactivate,
 }
 
 pub struct GameOptimizer {
@@ -111,36 +120,32 @@ pub struct GameOptimizer {
     // Crosshair overlay handle
     overlay_handle: Option<OverlayHandle>,
 
-    // Tray manager (kept in app state since TrayIcon is !Send)
-    tray_manager: Option<TrayFlyoutManager>,
+    // Flyout window (owned by Settings, triggered by IPC from Runner)
+    flyout_window: Option<FlyoutWindow>,
+
+    // IPC client for sending messages to Runner
+    ipc_client: Option<std::sync::Arc<Mutex<NamedPipeClient>>>,
+
+    // Startup flags
+    pending_show_flyout: bool,
 }
 
-/// Tray action to be processed by the app
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-enum TrayAction {
-    ShowFlyout,
-    HideFlyout,
-    ProfileSelected(String),
-    Exit,
-    None,
-}
-
-/// Process tray events - returns action for the app to handle
-fn process_tray_events() -> TrayAction {
-    // IMPORTANT: Pump Windows messages for tray icon to work
-    // iced's winit doesn't process these by default
-    unsafe {
-        use windows::Win32::UI::WindowsAndMessaging::*;
-        let mut msg = MSG::default();
-        while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
-            // Don't process WM_QUIT here - let iced handle shutdown
-            if msg.message == WM_QUIT {
-                println!("[GUI] WM_QUIT received in message pump - ignoring");
-                continue;
+/// Process IPC messages from Runner - returns action for the app to handle
+fn process_ipc_messages() -> Option<Message> {
+    // Check for IPC messages from Runner
+    if let Ok(guard) = IPC_MESSAGE_RX.lock() {
+        if let Some(ref rx) = *guard {
+            if let Ok(msg) = rx.try_recv() {
+                return match msg {
+                    TrayToGui::ShowFlyout => Some(Message::IpcShowFlyout),
+                    TrayToGui::HideFlyout => Some(Message::IpcHideFlyout),
+                    TrayToGui::BringMainToFront => Some(Message::IpcBringToFront),
+                    TrayToGui::Exit => Some(Message::IpcExit),
+                    TrayToGui::ActivateProfile(name) => Some(Message::FlyoutProfileSelected(name)),
+                    TrayToGui::OpenSettings => Some(Message::IpcBringToFront),
+                    _ => None,
+                };
             }
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
         }
     }
 
@@ -149,107 +154,12 @@ fn process_tray_events() -> TrayAction {
         if let Some(ref rx) = *guard {
             if let Ok(profile_name) = rx.try_recv() {
                 println!("[GUI] Profile activated from flyout: {}", profile_name);
-                return TrayAction::ProfileSelected(profile_name);
+                return Some(Message::FlyoutProfileSelected(profile_name));
             }
         }
     }
 
-    // Check for menu events (right-click context menu)
-    if let Ok(guard) = MENU_EVENT_RX.lock() {
-        if let Some(ref rx) = *guard {
-            if let Ok(event) = rx.try_recv() {
-                println!("[GUI] Menu event received: {:?}", event);
-                // Check if it's the exit item
-                if let Ok(exit_guard) = MENU_EXIT_ID.lock() {
-                    if let Some(ref exit_id) = *exit_guard {
-                        if event.id == *exit_id {
-                            return TrayAction::Exit;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Check for tray icon click events
-    if let Ok(guard) = TRAY_EVENT_RX.lock() {
-        if let Some(ref rx) = *guard {
-            if let Ok(event) = rx.try_recv() {
-                match event {
-                    TrayIconEvent::Click {
-                        button,
-                        button_state,
-                        ..
-                    } => {
-                        if button == MouseButton::Left && button_state == MouseButtonState::Up {
-                            let now = Instant::now();
-
-                            // Check for double-click
-                            let is_double_click = if let Ok(guard) = LAST_CLICK_TIME.lock() {
-                                if let Some(last_time) = *guard {
-                                    now.duration_since(last_time).as_millis() < 500
-                                } else {
-                                    false
-                                }
-                            } else {
-                                false
-                            };
-
-                            if is_double_click {
-                                // Double-click - clear state
-                                if let Ok(mut guard) = LAST_CLICK_TIME.lock() {
-                                    *guard = None;
-                                }
-                                if let Ok(mut guard) = PENDING_SINGLE_CLICK.lock() {
-                                    *guard = false;
-                                }
-                                println!("[GUI] Double-click detected - GUI already open");
-                                // GUI is already open, nothing to do
-                            } else {
-                                // First click - start timer
-                                if let Ok(mut guard) = LAST_CLICK_TIME.lock() {
-                                    *guard = Some(now);
-                                }
-                                if let Ok(mut guard) = PENDING_SINGLE_CLICK.lock() {
-                                    *guard = true;
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    // Check if single-click timer expired (show flyout)
-    let should_toggle_flyout = if let Ok(guard) = PENDING_SINGLE_CLICK.lock() {
-        if *guard {
-            if let Ok(time_guard) = LAST_CLICK_TIME.lock() {
-                if let Some(last_time) = *time_guard {
-                    Instant::now().duration_since(last_time).as_millis() >= 500
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    } else {
-        false
-    };
-
-    if should_toggle_flyout {
-        // Clear pending state
-        if let Ok(mut guard) = PENDING_SINGLE_CLICK.lock() {
-            *guard = false;
-        }
-        return TrayAction::ShowFlyout;
-    }
-
-    TrayAction::None
+    None
 }
 
 impl GameOptimizer {
@@ -402,7 +312,7 @@ impl GameOptimizer {
                 self.refresh_running_processes();
 
                 // Update tray with new active profile
-                self.update_tray();
+                self.notify_runner_profile_changed();
             }
         } else {
             self.status_message = "⚠️ No profile selected to activate".to_string();
@@ -419,7 +329,7 @@ impl GameOptimizer {
         self.overlay_handle = None;
 
         self.status_message = "Profile deactivated".to_string();
-        self.update_tray();
+        self.notify_runner_profile_changed();
     }
 
     /// Update the live crosshair overlay with new offsets (restarts if running)
@@ -451,22 +361,122 @@ impl GameOptimizer {
         }
     }
 
-    fn update_tray(&mut self) {
-        // Update tray with current profiles
-        if let Some(ref mut tray) = self.tray_manager {
-            tray.update_profiles(self.profiles.clone());
-            tray.set_active_profile(self.active_profile_name.clone());
+    /// Send profile change notification to Runner via IPC
+    fn notify_runner_profile_changed(&mut self) {
+        if let Some(ref client) = self.ipc_client {
+            if let Ok(client) = client.lock() {
+                let msg = GuiToTray::ActiveProfileChanged(self.active_profile_name.clone());
+                if let Err(e) = client.send(&msg) {
+                    eprintln!("[GUI] Failed to notify Runner of profile change: {}", e);
+                }
+            }
         }
     }
 
-    fn toggle_flyout(&mut self) {
-        if let Some(ref mut tray) = self.tray_manager {
-            if tray.is_flyout_visible() {
-                tray.hide_flyout();
-            } else {
-                if let Err(e) = tray.show_flyout() {
-                    eprintln!("[GUI] Failed to show flyout: {}", e);
+    /// Show the flyout window (owned by Settings, triggered by IPC from Runner)
+    fn show_flyout(&mut self) {
+        println!("[GUI] Showing flyout window");
+
+        // Close existing flyout if any
+        self.flyout_window = None;
+
+        // Get screen position for flyout (near taskbar)
+        let tray_rect = unsafe {
+            use windows::Win32::UI::WindowsAndMessaging::*;
+            let screen_width = GetSystemMetrics(SM_CXSCREEN);
+            let screen_height = GetSystemMetrics(SM_CYSCREEN);
+            windows::Win32::Foundation::RECT {
+                left: screen_width - 100,
+                top: screen_height - 50,
+                right: screen_width,
+                bottom: screen_height,
+            }
+        };
+
+        // Create IPC sender for flyout → GUI profile selection
+        let (tx, rx) = mpsc::channel::<crate::ipc::TrayToGui>();
+
+        // Store receivers
+        let profile_tx = {
+            let (ptx, prx) = mpsc::channel::<String>();
+            if let Ok(mut guard) = FLYOUT_PROFILE_RX.lock() {
+                *guard = Some(prx);
+            }
+            ptx
+        };
+
+        // Forward TrayToGui::ActivateProfile to String channel
+        std::thread::spawn(move || {
+            while let Ok(msg) = rx.recv() {
+                if let crate::ipc::TrayToGui::ActivateProfile(name) = msg {
+                    let _ = profile_tx.send(name);
                 }
+            }
+        });
+
+        // Create flyout window
+        match FlyoutWindow::new(
+            tray_rect,
+            self.profiles.clone(),
+            self.active_profile_name.clone(),
+            tx,
+        ) {
+            Ok(flyout) => {
+                flyout.show();
+                self.flyout_window = Some(flyout);
+                println!("[GUI] Flyout displayed successfully");
+            }
+            Err(e) => {
+                eprintln!("[GUI] Failed to create flyout: {}", e);
+            }
+        }
+    }
+
+    /// Hide the flyout window
+    fn hide_flyout(&mut self) {
+        self.flyout_window = None;
+    }
+
+    /// Toggle flyout visibility
+    #[allow(dead_code)]
+    fn toggle_flyout(&mut self) {
+        if self.flyout_window.is_some() {
+            self.hide_flyout();
+        } else {
+            self.show_flyout();
+        }
+    }
+
+    /// Bring main window to front using Win32 API
+    fn bring_to_front(&self) {
+        println!("[GUI] BringMainToFront requested");
+        
+        // Use Win32 APIs to find and bring our window to front
+        unsafe {
+            use windows::Win32::Foundation::HWND;
+            use windows::Win32::UI::WindowsAndMessaging::*;
+            
+            // Find window by class or enumerate to find ours
+            // iced windows typically have the title we set
+            let title: Vec<u16> = "Edge Optimizer - Profile Manager\0".encode_utf16().collect();
+            let hwnd = FindWindowW(None, windows::core::PCWSTR(title.as_ptr()));
+            
+            if hwnd != HWND::default() {
+                println!("[GUI] Found window, bringing to front");
+                
+                // Restore if minimized
+                if IsIconic(hwnd).as_bool() {
+                    let _ = ShowWindow(hwnd, SW_RESTORE);
+                }
+                
+                // Bring to foreground
+                let _ = SetForegroundWindow(hwnd);
+                
+                // Also try BringWindowToTop for good measure
+                let _ = BringWindowToTop(hwnd);
+            } else {
+                println!("[GUI] Window not found by title, trying alternate method");
+                // Window is likely already in focus since we're running
             }
         }
     }
@@ -476,9 +486,9 @@ impl Application for GameOptimizer {
     type Executor = executor::Default;
     type Message = Message;
     type Theme = Theme;
-    type Flags = ();
+    type Flags = GuiFlags;
 
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+    fn new(flags: GuiFlags) -> (Self, Command<Message>) {
         let data_dir = get_data_directory().ok();
         let mut app = GameOptimizer {
             profiles: Vec::new(),
@@ -492,88 +502,80 @@ impl Application for GameOptimizer {
             process_selection: HashMap::new(),
             running_processes: Vec::new(),
             process_filter: String::new(),
-            status_message: "Welcome to Gaming Optimizer".to_string(),
+            status_message: "Welcome to Edge Optimizer".to_string(),
             data_dir,
             active_profile_name: None,
             overlay_handle: None,
-            tray_manager: None, // Will be set by run() via Flags if we change approach
+            flyout_window: None,
+            ipc_client: flags.ipc_client.clone(),
+            pending_show_flyout: flags.show_flyout,
         };
         app.load_profiles_from_disk();
         app.refresh_running_processes();
 
-        // Create tray manager on main thread (inside iced's new)
-        let app_config = crate::config::load_config();
-        match TrayFlyoutManager::new_with_channels(app.profiles.clone(), app_config.active_profile)
-        {
-            Ok((tray, event_rx, menu_rx, profile_rx)) => {
-                // Store the exit menu ID
-                if let Ok(mut guard) = MENU_EXIT_ID.lock() {
-                    *guard = Some(tray.menu_item_exit.clone());
-                }
-                // Store channels in globals
-                if let Ok(mut guard) = TRAY_EVENT_RX.lock() {
-                    *guard = Some(event_rx);
-                }
-                if let Ok(mut guard) = MENU_EVENT_RX.lock() {
-                    *guard = Some(menu_rx);
-                }
-                if let Ok(mut guard) = FLYOUT_PROFILE_RX.lock() {
-                    *guard = Some(profile_rx);
-                }
-                app.tray_manager = Some(tray);
-                println!("[GUI] Tray manager created successfully");
-            }
-            Err(e) => {
-                eprintln!("[GUI] Failed to create tray: {}", e);
-            }
-        }
+        println!(
+            "[GUI] Application initialized, pending_show_flyout={}",
+            app.pending_show_flyout
+        );
 
-        (app, Command::none())
+        // Return initial command to show flyout if requested
+        let cmd = if flags.show_flyout {
+            Command::perform(async {}, |_| Message::IpcShowFlyout)
+        } else {
+            Command::none()
+        };
+
+        (app, cmd)
     }
 
     fn title(&self) -> String {
-        String::from("Gaming Optimizer - Profile Manager")
+        String::from("Edge Optimizer - Profile Manager")
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        // Poll for tray events (faster polling for responsive click detection)
-        struct TrayPoller;
+        // Poll for IPC messages from Runner
+        struct IpcPoller;
 
-        iced::subscription::unfold(std::any::TypeId::of::<TrayPoller>(), (), |_| async move {
-            std::thread::sleep(Duration::from_millis(50)); // 50ms for responsive clicks
-            (Message::TrayTick, ())
+        iced::subscription::unfold(std::any::TypeId::of::<IpcPoller>(), (), |_| async move {
+            std::thread::sleep(Duration::from_millis(50)); // 50ms for responsive IPC
+            (Message::IpcTick, ())
         })
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::TrayTick => {
-                // Process tray events (clicks, menu, flyout profile selection)
-                match process_tray_events() {
-                    TrayAction::ShowFlyout => {
-                        self.toggle_flyout();
-                    }
-                    TrayAction::ProfileSelected(name) => {
-                        return self.update(Message::TrayProfileSelected(name));
-                    }
-                    TrayAction::Exit => {
-                        return self.update(Message::TrayExit);
-                    }
-                    _ => {}
+            Message::IpcTick => {
+                // Process IPC messages from Runner
+                if let Some(ipc_msg) = process_ipc_messages() {
+                    return self.update(ipc_msg);
                 }
             }
 
-            Message::TrayProfileSelected(name) => {
-                self.activate_profile_by_name(&name);
+            Message::IpcShowFlyout => {
+                self.show_flyout();
             }
 
-            Message::TrayDeactivate => {
-                self.deactivate_profile();
+            Message::IpcHideFlyout => {
+                self.hide_flyout();
             }
 
-            Message::TrayExit => {
+            Message::IpcBringToFront => {
+                self.bring_to_front();
+            }
+
+            Message::IpcExit => {
                 // Clean exit
                 std::process::exit(0);
+            }
+
+            Message::FlyoutProfileSelected(name) => {
+                self.activate_profile_by_name(&name);
+                self.hide_flyout(); // Close flyout after selection
+            }
+
+            Message::FlyoutDeactivate => {
+                self.deactivate_profile();
+                self.hide_flyout();
             }
 
             Message::ProfileNameChanged(name) => {
@@ -619,7 +621,7 @@ impl Application for GameOptimizer {
                 }
 
                 self.save_profiles_to_disk();
-                self.update_tray();
+                self.notify_runner_profile_changed();
             }
 
             Message::DeleteProfile => {
@@ -628,7 +630,7 @@ impl Application for GameOptimizer {
                     self.profiles.remove(index);
                     self.clear_edit_form();
                     self.save_profiles_to_disk();
-                    self.update_tray();
+                    self.notify_runner_profile_changed();
                     self.status_message = format!("🗑️ Deleted profile: {}", name);
                 }
             }
@@ -1103,10 +1105,67 @@ impl GameOptimizer {
 }
 
 pub fn run() -> iced::Result {
-    println!("[GUI] Starting GUI with integrated tray...");
+    println!("[GUI] Starting GUI (standalone mode, no IPC)...");
+    run_with_ipc(None, crate::StartupFlags::default())
+}
 
-    // Tray is created inside Application::new() on main thread
+/// Run GUI with IPC client and startup flags
+/// Called by Settings main.rs
+pub fn run_with_ipc(
+    ipc_client: Option<NamedPipeClient>,
+    startup_flags: crate::StartupFlags,
+) -> iced::Result {
+    println!("[GUI] Starting GUI with IPC support...");
+
+    // Wrap IPC client in Arc<Mutex> for thread-safe sharing
+    let ipc_arc = ipc_client.map(|c| std::sync::Arc::new(Mutex::new(c)));
+
+    // If we have an IPC client, start a listener thread
+    if let Some(ref client_arc) = ipc_arc {
+        let client_clone = client_arc.clone();
+        let (tx, rx) = mpsc::channel::<TrayToGui>();
+
+        // Store the IPC receiver globally
+        if let Ok(mut guard) = IPC_MESSAGE_RX.lock() {
+            *guard = Some(rx);
+        }
+
+        // Start IPC listener thread
+        std::thread::spawn(move || {
+            println!("[IPC-LISTENER] Started listening for Runner messages");
+            loop {
+                // Try to receive IPC messages
+                if let Ok(client) = client_clone.lock() {
+                    match client.try_recv() {
+                        Ok(Some(msg)) => {
+                            println!("[IPC-LISTENER] Received: {:?}", msg);
+                            if tx.send(msg).is_err() {
+                                println!("[IPC-LISTENER] GUI channel closed, exiting");
+                                break;
+                            }
+                        }
+                        Ok(None) => {
+                            // No message available
+                        }
+                        Err(e) => {
+                            eprintln!("[IPC-LISTENER] Error receiving: {}", e);
+                        }
+                    }
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        });
+    }
+
+    // Prepare flags for the application
+    let flags = GuiFlags {
+        show_flyout: startup_flags.show_flyout,
+        bring_to_front: startup_flags.bring_to_front,
+        ipc_client: ipc_arc,
+    };
+
     let result = GameOptimizer::run(Settings {
+        flags,
         window: iced::window::Settings {
             size: iced::Size::new(1000.0, 750.0),
             min_size: Some(iced::Size::new(900.0, 650.0)),

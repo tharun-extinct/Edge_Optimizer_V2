@@ -1,13 +1,12 @@
 ---
 applyTo: "**/*"
-name: Edge Optimizer
+name: EdgeOptimizer
 description: High-performance RUST-based gaming optimization application
 ---
 
-**Project name:** `Edge Optimizer`
+**Project name:** `EdgeOptimizer`
 
-
-**Project description:** Edge Optimizer is a high-performance RUST-based application designed to 
+**Project description:** EdgeOptimizer is a high-performance RUST-based application designed to 
   - kill unwanted background processes (that are necessary for gaming)
   - optimize system performance (Tweaking power plans, disabling Ethernet Energy Efficient mode for lower input delay, etc.)
   - Add Crosshair overlays for better aiming in FPS games
@@ -47,6 +46,66 @@ EdgeOptimizer.Runner   -> separate process that manages the system tray icon
 EdgeOptimizer.Crosshair -> Crosshair overlay
 
 
+
+## EdgeOptimizer.Settings Process 
+- Settings has NO tray management, it only has UI windows (MainWindow, FlyoutWindow)
+- The Settings UI (including both the main GUI and flyout) runs as a separate process
+- Within the Settings UI process, there are two distinct windows:
+        MainWindow - the full settings application
+        FlyoutWindow - the quick access flyout (It closes, when clicking outside)
+
+    
+
+
+
+### DispatcherQueues
+DispatcherQueue is a modern Windows API for managing thread-safe UI operations. Think of it as a task queue for a specific UI thread.
+Safely routes operations to the correct UI thread
+UI elements can only be modified on the thread that created them. DispatcherQueue solves this safely.
+
+
+
+## EdgeOptimizer.Runner Process
+- Only the Runner process manages the system tray icon and handles tray icon clicks
+- When user click the tray icon, the Runner sends an IPC message to the Settings UI process
+- Runner process actively listens— using Windows Message Loop pattern
+- Runner uses Win32 message loop to listen for tray icon clicks
+- Runner manages tray, sends IPC to Settings (via Named Pipes), Settings uses DispatcherQueue to marshal to UI thread → Show flyout (UI thread)
+
+    ### Flyout Behavior
+        - Right-click → Shows traditional context menu (Settings [Double clicks opens Main GUI], Documentation, Report Bug, Close)
+        - Left single-click → Opens flyout window
+        - Left double-click → Opens full Settings window (If already open, brings to front)
+
+
+
+
+```Architecture
+
+┌──────────────────────────────────────┐
+│   Runner Process (PowerToys.exe)     │
+│                                      │
+│   ┌──────────────────────────────┐   │
+│   │  System Tray Icon            │   │  ← ONLY Runner has this
+│   │                              │   │
+│   └──────────────────────────────┘   │
+│                                      │
+└──────────────────────────────────────┘
+                │
+                │ IPC (Named Pipes)
+                ↓
+┌──────────────────────────────────────┐
+│   Settings Process (Settings.exe)    │
+│                                      │
+│   ┌──────────────────────────────┐   │
+│   │  MainWindow                  │   │  ← NO tray icon here
+│   │  FlyoutWindow                │   │
+│   └──────────────────────────────┘   │
+│                                      │
+└──────────────────────────────────────┘```
+
+
+
 ```flow 
 Runner                                Settings
   │                                      │
@@ -64,36 +123,6 @@ Runner                                Settings
   │                                      │  5. Shows FlyoutWindow
   │                                      ↓
 ```
-
-
-## EdgeOptimizer.Settings Process 
-- The Settings UI (including both the main GUI and flyout) runs as a separate process
-- Within the Settings UI process, there are two distinct windows:
-        MainWindow - the full settings application
-        FlyoutWindow - the quick access flyout (It closes, when clicking outside)
-
-    ### Flyout Behavior
-    - Right-click → Shows traditional context menu (Settings [Double clicks opens Main GUI], Documentation, Report Bug, Close)
-    - Left single-click → Opens flyout window
-    - Left double-click → Opens full Settings window (If already open, brings to front)
-
-
-
-### DispatcherQueues
-DispatcherQueue is a modern Windows API for managing thread-safe UI operations. Think of it as a task queue for a specific UI thread.
-Safely routes operations to the correct UI thread
-UI elements can only be modified on the thread that created them. DispatcherQueue solves this safely.
-
-
-
-
-## EdgeOptimizer.Runner Process
-- The Runner process manages the system tray icon and handles tray icon clicks
-- When user click the tray icon, the Runner sends an IPC message to the Settings UI process
-- Runner process actively listens— using Windows Message Loop pattern
-- Runner uses Win32 message loop to listen for tray icon clicks
-- Tray click (Runner) → IPC message → DispatcherQueue → Show flyout (UI thread)
-
 ---
 
 **For Refactoring code:**
