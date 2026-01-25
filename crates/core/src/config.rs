@@ -1,28 +1,28 @@
 /// Configuration module for the Gaming Optimizer application.
-/// 
+///
 /// This module provides functionality for managing application configuration,
 /// including:
 /// - Storing and retrieving the active optimization profile
 /// - Managing overlay visibility state
 /// - Persisting configuration to disk as JSON
 /// - Determining the appropriate data directory for the application
-/// 
+///
 /// The configuration is automatically saved to and loaded from a `config.json`
 /// file located in the platform-specific application data directory
 /// (%APPDATA%/GamingOptimizer/ on Windows).
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use gaming_optimizer::config::{AppConfig, load_config, save_config};
-/// 
+///
 /// // Load existing config or get defaults
 /// let mut config = load_config();
-/// 
+///
 /// // Modify config
 /// config.active_profile = Some("Gaming".to_string());
 /// config.overlay_visible = true;
-/// 
+///
 /// // Save changes
 /// save_config(&config).expect("Failed to save config");
 /// ```
@@ -60,8 +60,7 @@ pub fn get_data_directory() -> Result<PathBuf> {
     let data_dir = project_dirs.data_dir();
 
     // Create directory if it doesn't exist
-    fs::create_dir_all(data_dir)
-        .map_err(|e| anyhow!("Failed to create data directory: {}", e))?;
+    fs::create_dir_all(data_dir).map_err(|e| anyhow!("Failed to create data directory: {}", e))?;
 
     Ok(data_dir.to_path_buf())
 }
@@ -72,7 +71,7 @@ pub fn load_config() -> AppConfig {
     let Ok(data_dir) = get_data_directory() else {
         return AppConfig::default();
     };
-    
+
     let config_path = data_dir.join("config.json");
 
     // If file doesn't exist, return default config
@@ -99,8 +98,7 @@ pub fn save_config(config: &AppConfig) -> Result<()> {
         .map_err(|e| anyhow!("Failed to serialize config: {}", e))?;
 
     // Write to file
-    fs::write(&config_path, json)
-        .map_err(|e| anyhow!("Failed to write config.json: {}", e))?;
+    fs::write(&config_path, json).map_err(|e| anyhow!("Failed to write config.json: {}", e))?;
 
     Ok(())
 }

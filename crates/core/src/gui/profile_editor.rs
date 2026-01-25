@@ -1,7 +1,10 @@
-/// Profile editor UI components
-use iced::{Element, widget::{Column, Row, Text, Button, TextInput, Checkbox, Space, Container}, Length, Alignment};
 use crate::gui::Message;
 use crate::profile::Profile;
+/// Profile editor UI components
+use iced::{
+    widget::{Button, Checkbox, Column, Container, Row, Space, Text, TextInput},
+    Alignment, Element, Length,
+};
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -42,20 +45,14 @@ pub fn render_editor(profile: &EditingProfile) -> Element<'static, Message> {
     let content = Column::new()
         .spacing(15)
         .padding(20)
-        .push(
-            Text::new("Profile Name")
-                .size(18)
-        )
+        .push(Text::new("Profile Name").size(18))
         .push(
             TextInput::new("Enter profile name", &profile.name)
                 .on_input(Message::ProfileNameChanged)
-                .width(Length::Fill)
+                .width(Length::Fill),
         )
         .push(Space::new(Length::Fill, Length::Fixed(10.0)))
-        .push(
-            Text::new("Crosshair Settings")
-                .size(16)
-        )
+        .push(Text::new("Crosshair Settings").size(16))
         .push(
             Row::new()
                 .spacing(20)
@@ -67,8 +64,8 @@ pub fn render_editor(profile: &EditingProfile) -> Element<'static, Message> {
                         .push(
                             TextInput::new("-500 to 500", &profile.crosshair_x_offset)
                                 .on_input(Message::CrosshairOffsetXChanged)
-                                .width(Length::Fixed(150.0))
-                        )
+                                .width(Length::Fixed(150.0)),
+                        ),
                 )
                 .push(
                     Column::new()
@@ -77,9 +74,9 @@ pub fn render_editor(profile: &EditingProfile) -> Element<'static, Message> {
                         .push(
                             TextInput::new("-500 to 500", &profile.crosshair_y_offset)
                                 .on_input(Message::CrosshairOffsetYChanged)
-                                .width(Length::Fixed(150.0))
-                        )
-                )
+                                .width(Length::Fixed(150.0)),
+                        ),
+                ),
         )
         .push(Space::new(Length::Fill, Length::Fixed(10.0)))
         .push(
@@ -93,25 +90,20 @@ pub fn render_editor(profile: &EditingProfile) -> Element<'static, Message> {
                         .push(
                             Button::new(Text::new("Select Image"))
                                 .on_press(Message::SelectImage)
-                                .padding(10)
-                        )
+                                .padding(10),
+                        ),
                 )
-                .push(
-                    if let Some(path) = &profile.crosshair_image_path {
-                        Text::new(format!("✓ {}", path)).size(12)
-                    } else {
-                        Text::new("No image selected").size(12)
-                    }
-                )
+                .push(if let Some(path) = &profile.crosshair_image_path {
+                    Text::new(format!("✓ {}", path)).size(12)
+                } else {
+                    Text::new("No image selected").size(12)
+                }),
         )
         .push(Space::new(Length::Fill, Length::Fixed(10.0)))
         .push(
             Checkbox::new("Enable crosshair overlay", profile.overlay_enabled)
-                .on_toggle(Message::OverlayEnabledToggled)
+                .on_toggle(Message::OverlayEnabledToggled),
         );
 
-    Container::new(content)
-        .width(Length::Fill)
-        .into()
+    Container::new(content).width(Length::Fill).into()
 }
-

@@ -33,16 +33,16 @@ impl KillReport {
 /// Critical Windows processes that cannot be killed
 /// Killing these could crash the system or cause serious instability
 const PROTECTED_PROCESSES: &[&str] = &[
-    "csrss.exe",      // Client Server Runtime
-    "dwm.exe",        // Desktop Window Manager
-    "explorer.exe",   // Windows Explorer (shell)
-    "lsass.exe",      // Local Security Authority
-    "services.exe",   // Services Control Manager
-    "smss.exe",       // Session Manager
-    "system",         // System process
-    "wininit.exe",    // Windows Init
-    "winlogon.exe",   // Windows Logon
-    "svchost.exe",    // Service Host (critical services)
+    "csrss.exe",    // Client Server Runtime
+    "dwm.exe",      // Desktop Window Manager
+    "explorer.exe", // Windows Explorer (shell)
+    "lsass.exe",    // Local Security Authority
+    "services.exe", // Services Control Manager
+    "smss.exe",     // Session Manager
+    "system",       // System process
+    "wininit.exe",  // Windows Init
+    "winlogon.exe", // Windows Logon
+    "svchost.exe",  // Service Host (critical services)
 ];
 
 /// Check if a process name is in the protected list (case-insensitive)

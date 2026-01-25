@@ -22,9 +22,7 @@ impl Profile {
     pub fn validate(&self) -> Result<()> {
         // Validate name length (1-50 characters)
         if self.name.is_empty() || self.name.len() > 50 {
-            return Err(anyhow!(
-                "Profile name must be between 1 and 50 characters"
-            ));
+            return Err(anyhow!("Profile name must be between 1 and 50 characters"));
         }
 
         // Validate crosshair image path if provided
@@ -33,31 +31,21 @@ impl Profile {
 
             // Check if file exists
             if !path_obj.exists() {
-                return Err(anyhow!(
-                    "Crosshair image file does not exist: {}",
-                    path
-                ));
+                return Err(anyhow!("Crosshair image file does not exist: {}", path));
             }
 
             // Check if file has .png extension
             if path_obj.extension().and_then(|s| s.to_str()) != Some("png") {
-                return Err(anyhow!(
-                    "Crosshair image must be a PNG file: {}",
-                    path
-                ));
+                return Err(anyhow!("Crosshair image must be a PNG file: {}", path));
             }
         }
 
         // Validate X/Y offsets (-500 to +500 pixels)
         if self.crosshair_x_offset < -500 || self.crosshair_x_offset > 500 {
-            return Err(anyhow!(
-                "X offset must be between -500 and 500 pixels"
-            ));
+            return Err(anyhow!("X offset must be between -500 and 500 pixels"));
         }
         if self.crosshair_y_offset < -500 || self.crosshair_y_offset > 500 {
-            return Err(anyhow!(
-                "Y offset must be between -500 and 500 pixels"
-            ));
+            return Err(anyhow!("Y offset must be between -500 and 500 pixels"));
         }
 
         Ok(())
@@ -88,8 +76,7 @@ pub fn load_profiles(data_dir: &Path) -> Result<Vec<Profile>> {
 /// Creates directory if it doesn't exist
 pub fn save_profiles(profiles: &[Profile], data_dir: &Path) -> Result<()> {
     // Create directory if it doesn't exist
-    fs::create_dir_all(data_dir)
-        .map_err(|e| anyhow!("Failed to create data directory: {}", e))?;
+    fs::create_dir_all(data_dir).map_err(|e| anyhow!("Failed to create data directory: {}", e))?;
 
     let profiles_path = data_dir.join("profiles.json");
 
@@ -98,8 +85,7 @@ pub fn save_profiles(profiles: &[Profile], data_dir: &Path) -> Result<()> {
         .map_err(|e| anyhow!("Failed to serialize profiles: {}", e))?;
 
     // Write to file
-    fs::write(&profiles_path, json)
-        .map_err(|e| anyhow!("Failed to write profiles.json: {}", e))?;
+    fs::write(&profiles_path, json).map_err(|e| anyhow!("Failed to write profiles.json: {}", e))?;
 
     Ok(())
 }
@@ -128,7 +114,11 @@ pub fn delete_profile(profiles: &mut Vec<Profile>, index: usize) {
 
 /// Check if profile name is unique in the list (case-insensitive)
 #[allow(dead_code)]
-pub fn is_profile_name_unique(profiles: &[Profile], name: &str, exclude_index: Option<usize>) -> bool {
+pub fn is_profile_name_unique(
+    profiles: &[Profile],
+    name: &str,
+    exclude_index: Option<usize>,
+) -> bool {
     let name_lower = name.to_lowercase();
 
     for (i, profile) in profiles.iter().enumerate() {

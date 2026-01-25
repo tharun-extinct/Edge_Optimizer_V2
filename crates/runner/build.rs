@@ -11,7 +11,7 @@ fn main() {
         res.set("OriginalFilename", "EdgeOptimizer.Runner.exe");
         res.set("CompanyName", "Edge Optimizer");
         res.set("LegalCopyright", "Copyright © 2026");
-        
+
         if let Err(e) = res.compile() {
             println!("cargo:warning=Failed to compile Windows resources: {}", e);
         }

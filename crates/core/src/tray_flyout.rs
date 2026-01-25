@@ -1,47 +1,54 @@
 /// System tray with flyout menu integration
-/// 
+///
 /// This module provides a simplified tray icon that spawns a custom flyout window
 /// instead of using native OS context menus.
-
 use crate::flyout::FlyoutWindow;
-use crate::ipc::{TrayChannels, GuiToTray};
+use crate::ipc::{GuiToTray, TrayChannels};
 use crate::profile::Profile;
 use anyhow::{anyhow, Result};
-use std::sync::mpsc::{Sender, TryRecvError, Receiver, channel};
+use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::time::Instant;
-use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState, Icon, menu::MenuEvent};
-use tray_icon::menu::{Menu, MenuItem, MenuId, PredefinedMenuItem};
+use tray_icon::menu::{Menu, MenuId, MenuItem, PredefinedMenuItem};
+use tray_icon::{
+    menu::MenuEvent, Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent,
+};
 
 /// Load application icon from favicon.ico file
 fn load_app_icon() -> Result<Icon> {
     // Try multiple paths
     let paths_to_try = vec![
-        std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.join("favicon.ico"))),
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.join("favicon.ico"))),
         Some(std::path::PathBuf::from("favicon.ico")),
-        Some(std::path::PathBuf::from("X:\\AI_and_Automation\\Gaming_optimizer\\favicon.ico")),
+        Some(std::path::PathBuf::from(
+            "X:\\AI_and_Automation\\Gaming_optimizer\\favicon.ico",
+        )),
     ];
-    
+
     for path_opt in paths_to_try {
         if let Some(path) = path_opt {
             if path.exists() {
                 let icon_data = std::fs::read(&path)
                     .map_err(|e| anyhow!("Failed to read favicon.ico: {}", e))?;
-                
+
                 // Decode with image crate
                 let img = image::load_from_memory(&icon_data)
                     .map_err(|e| anyhow!("Failed to decode icon: {}", e))?;
-                
+
                 let img = img.resize_exact(16, 16, image::imageops::FilterType::Lanczos3);
                 let rgba = img.to_rgba8();
-                
+
                 return Icon::from_rgba(rgba.into_raw(), 16, 16)
                     .map_err(|e| anyhow!("Failed to create icon from image: {:?}", e));
             }
         }
     }
-    
+
     // Fallback: green square
-    let icon_rgba: Vec<u8> = (0..16*16).flat_map(|_| vec![0x00, 0xAA, 0x00, 0xFF]).collect();
+    let icon_rgba: Vec<u8> = (0..16 * 16)
+        .flat_map(|_| vec![0x00, 0xAA, 0x00, 0xFF])
+        .collect();
     Icon::from_rgba(icon_rgba, 16, 16)
         .map_err(|e| anyhow!("Failed to create fallback icon: {:?}", e))
 }
@@ -49,7 +56,7 @@ fn load_app_icon() -> Result<Icon> {
 /// Create a TrayToGui sender that forwards profile activations to a String channel
 fn create_profile_forwarder(profile_tx: Sender<String>) -> Sender<crate::ipc::TrayToGui> {
     let (tx, rx) = channel::<crate::ipc::TrayToGui>();
-    
+
     // Spawn a small thread to forward messages
     std::thread::spawn(move || {
         while let Ok(msg) = rx.recv() {
@@ -58,7 +65,7 @@ fn create_profile_forwarder(profile_tx: Sender<String>) -> Sender<crate::ipc::Tr
             }
         }
     });
-    
+
     tx
 }
 
@@ -83,9 +90,14 @@ impl TrayFlyoutManager {
     /// Create a new tray manager with event channels for main-thread integration
     /// Returns the manager plus receivers for tray events, menu events, and profile activations
     pub fn new_with_channels(
-        profiles: Vec<Profile>, 
-        active_profile: Option<String>
-    ) -> Result<(Self, Receiver<TrayIconEvent>, Receiver<MenuEvent>, Receiver<String>)> {
+        profiles: Vec<Profile>,
+        active_profile: Option<String>,
+    ) -> Result<(
+        Self,
+        Receiver<TrayIconEvent>,
+        Receiver<MenuEvent>,
+        Receiver<String>,
+    )> {
         let tooltip = if let Some(ref name) = active_profile {
             format!("Gaming Optimizer - {}", name)
         } else {
@@ -93,10 +105,10 @@ impl TrayFlyoutManager {
         };
 
         println!("[TRAY] Creating tray icon with {} profiles", profiles.len());
-        
+
         let icon = load_app_icon()?;
         println!("[TRAY] Icon loaded");
-        
+
         // Create context menu (appears on right-click)
         let menu = Menu::new();
         let settings_item = MenuItem::new("Open Settings", true, None);
@@ -104,7 +116,7 @@ impl TrayFlyoutManager {
         let bug_item = MenuItem::new("Report Bug", true, None);
         let separator = PredefinedMenuItem::separator();
         let exit_item = MenuItem::new("Exit", true, None);
-        
+
         menu.append(&settings_item)
             .map_err(|e| anyhow!("Failed to add settings item: {}", e))?;
         menu.append(&docs_item)
@@ -115,43 +127,49 @@ impl TrayFlyoutManager {
             .map_err(|e| anyhow!("Failed to add separator: {}", e))?;
         menu.append(&exit_item)
             .map_err(|e| anyhow!("Failed to add exit item: {}", e))?;
-        
+
         // Store menu IDs for event handling
         let menu_item_settings = settings_item.id().clone();
         let menu_item_docs = docs_item.id().clone();
         let menu_item_bug_report = bug_item.id().clone();
         let menu_item_exit = exit_item.id().clone();
-        
+
         let tray_icon = TrayIconBuilder::new()
             .with_tooltip(&tooltip)
             .with_icon(icon)
             .with_menu(Box::new(menu))
             .build()
             .map_err(|e| anyhow!("Failed to create tray icon: {}", e))?;
-        
+
         println!("[TRAY] Tray icon created successfully with context menu");
 
         // Create channels for events
         let (event_tx, event_rx) = channel::<TrayIconEvent>();
         let (menu_tx, menu_rx) = channel::<MenuEvent>();
         let (profile_tx, profile_rx) = channel::<String>();
-        
+
         // Set up event handlers to forward events to channels
         // Use a delay flag to prevent events during initialization
         let startup_time = std::time::Instant::now();
         TrayIconEvent::set_event_handler(Some(move |event| {
             let elapsed = startup_time.elapsed().as_millis();
-            println!("[TRAY-HANDLER] Event received after {}ms: {:?}", elapsed, event);
+            println!(
+                "[TRAY-HANDLER] Event received after {}ms: {:?}",
+                elapsed, event
+            );
             // Ignore events in first 500ms to let iced start up
             if elapsed > 500 {
                 let _ = event_tx.send(event);
             }
         }));
-        
+
         let menu_startup = std::time::Instant::now();
         MenuEvent::set_event_handler(Some(move |event| {
             let elapsed = menu_startup.elapsed().as_millis();
-            println!("[MENU-HANDLER] Event received after {}ms: {:?}", elapsed, event);
+            println!(
+                "[MENU-HANDLER] Event received after {}ms: {:?}",
+                elapsed, event
+            );
             if elapsed > 500 {
                 let _ = menu_tx.send(event);
             }
@@ -183,13 +201,16 @@ impl TrayFlyoutManager {
     /// Show the flyout menu (main-thread version, uses internal profile_tx)
     pub fn show_flyout(&mut self) -> Result<()> {
         println!("[FLYOUT] Attempting to show flyout menu");
-        
+
         // Close existing flyout if any
         self.flyout = None;
 
         // Get tray icon rect for positioning
         let _tray_rect = if let Some(rect) = self.tray_icon.rect() {
-            println!("[FLYOUT] Tray icon position: {:?}, size: {:?}", rect.position, rect.size);
+            println!(
+                "[FLYOUT] Tray icon position: {:?}, size: {:?}",
+                rect.position, rect.size
+            );
             windows::Win32::Foundation::RECT {
                 left: rect.position.x as i32,
                 top: rect.position.y as i32,
@@ -216,7 +237,10 @@ impl TrayFlyoutManager {
         let ipc_sender = create_profile_forwarder(profile_tx);
 
         // Create and show flyout
-        println!("[FLYOUT] Creating flyout window with {} profiles", self.profiles.len());
+        println!(
+            "[FLYOUT] Creating flyout window with {} profiles",
+            self.profiles.len()
+        );
         let flyout = FlyoutWindow::new(
             _tray_rect,
             self.profiles.clone(),
@@ -249,7 +273,7 @@ impl TrayFlyoutManager {
         } else {
             "Gaming Optimizer - Inactive".to_string()
         };
-        
+
         let _ = self.tray_icon.set_tooltip(Some(&tooltip));
     }
 
@@ -278,9 +302,9 @@ pub fn run_tray_flyout_thread(
     active_profile: Option<String>,
 ) {
     use windows::Win32::UI::WindowsAndMessaging::*;
-    
+
     println!("[TRAY] Starting tray flyout on main thread");
-    
+
     // Create the tray manager
     let mut tray = match TrayFlyoutManager::new(initial_profiles, active_profile) {
         Ok(t) => t,
@@ -291,17 +315,18 @@ pub fn run_tray_flyout_thread(
     };
 
     println!("[TRAY] Setting up event handler");
-    
+
     // Create channels for tray icon and menu events
-    let (event_tx, event_rx): (Sender<TrayIconEvent>, Receiver<TrayIconEvent>) = std::sync::mpsc::channel();
+    let (event_tx, event_rx): (Sender<TrayIconEvent>, Receiver<TrayIconEvent>) =
+        std::sync::mpsc::channel();
     let (menu_tx, menu_rx): (Sender<MenuEvent>, Receiver<MenuEvent>) = std::sync::mpsc::channel();
-    
+
     // Set up event handler to forward events to our channel
     TrayIconEvent::set_event_handler(Some(move |event| {
         println!("[TRAY] *** EVENT HANDLER CALLED: {:?} ***", event);
         let _ = event_tx.send(event);
     }));
-    
+
     // Set up menu event handler
     MenuEvent::set_event_handler(Some(move |event| {
         println!("[MENU] *** MENU EVENT: {:?} ***", event);
@@ -329,12 +354,19 @@ pub fn run_tray_flyout_thread(
                 Ok(event) => {
                     println!("[TRAY] Processing event: {:?}", event);
                     match event {
-                        TrayIconEvent::Click { button, button_state, .. } => {
-                            println!("[TRAY] Click - button: {:?}, state: {:?}", button, button_state);
-                            
+                        TrayIconEvent::Click {
+                            button,
+                            button_state,
+                            ..
+                        } => {
+                            println!(
+                                "[TRAY] Click - button: {:?}, state: {:?}",
+                                button, button_state
+                            );
+
                             if button == MouseButton::Left && button_state == MouseButtonState::Up {
                                 let now = Instant::now();
-                                
+
                                 // Check for double-click (within 500ms of last click)
                                 if let Some(last_time) = tray.last_click_time {
                                     if now.duration_since(last_time).as_millis() < 500 {
@@ -342,24 +374,26 @@ pub fn run_tray_flyout_thread(
                                         println!("[TRAY] DOUBLE CLICK - opening full GUI");
                                         tray.pending_single_click = false;
                                         tray.last_click_time = None;
-                                        
+
                                         // Close flyout if open
                                         if tray.flyout.is_some() {
                                             println!("[TRAY] Closing flyout to open full GUI");
                                             tray.hide_flyout();
                                         }
-                                        
+
                                         // Send message to open GUI
-                                        let _ = channels.to_gui.send(crate::ipc::TrayToGui::OpenSettings);
+                                        let _ = channels
+                                            .to_gui
+                                            .send(crate::ipc::TrayToGui::OpenSettings);
                                         continue;
                                     }
                                 }
-                                
+
                                 // Single click - show flyout immediately (instant response)
                                 println!("[TRAY] Click detected - toggling flyout immediately");
                                 tray.last_click_time = Some(now);
                                 tray.pending_single_click = false; // No delay needed
-                                
+
                                 if tray.flyout.is_some() {
                                     println!("[TRAY] Hiding existing flyout");
                                     tray.hide_flyout();
@@ -376,9 +410,9 @@ pub fn run_tray_flyout_thread(
                 }
                 Err(_) => {}
             }
-            
+
             // No need for delayed single-click timer anymore - flyout shows immediately
-            
+
             // Check for menu events
             match menu_rx.try_recv() {
                 Ok(event) => {
@@ -389,13 +423,17 @@ pub fn run_tray_flyout_thread(
                     } else if event.id == tray.menu_item_docs {
                         println!("[MENU] Documentation clicked");
                         // Open documentation URL
-                        if let Err(e) = open::that("https://github.com/yourusername/gaming_optimizer#readme") {
+                        if let Err(e) =
+                            open::that("https://github.com/yourusername/gaming_optimizer#readme")
+                        {
                             eprintln!("[MENU] Failed to open documentation: {}", e);
                         }
                     } else if event.id == tray.menu_item_bug_report {
                         println!("[MENU] Report Bug clicked");
                         // Open GitHub issues page
-                        if let Err(e) = open::that("https://github.com/yourusername/gaming_optimizer/issues/new") {
+                        if let Err(e) = open::that(
+                            "https://github.com/yourusername/gaming_optimizer/issues/new",
+                        ) {
                             eprintln!("[MENU] Failed to open bug report page: {}", e);
                         }
                     } else if event.id == tray.menu_item_exit {
@@ -437,6 +475,6 @@ pub fn run_tray_flyout_thread(
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
-    
+
     println!("[TRAY] Tray thread exiting");
 }

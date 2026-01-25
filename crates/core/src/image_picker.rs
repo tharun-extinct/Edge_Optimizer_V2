@@ -1,13 +1,13 @@
 /// Windows native file dialog for image selection
 use anyhow::{anyhow, Result};
-use std::path::PathBuf;
 use image::GenericImageView;
+use std::path::PathBuf;
 
 /// Open Windows file dialog to select a PNG file
 #[cfg(windows)]
 pub fn open_image_picker() -> Result<PathBuf> {
     use rfd::FileDialog;
-    
+
     let file = FileDialog::new()
         .add_filter("PNG Image", &["png"])
         .add_filter("All Files", &["*"])
@@ -23,21 +23,23 @@ pub fn open_image_picker() -> Result<PathBuf> {
 
 /// Validate that the selected image is 100x100 pixels
 pub fn validate_crosshair_image(path: &PathBuf) -> Result<()> {
-    let reader = image::io::Reader::open(path)
-        .map_err(|e| anyhow!("Failed to open image: {}", e))?;
-    
-    let image = reader.decode()
+    let reader =
+        image::io::Reader::open(path).map_err(|e| anyhow!("Failed to open image: {}", e))?;
+
+    let image = reader
+        .decode()
         .map_err(|e| anyhow!("Failed to decode image: {}", e))?;
-    
+
     let (width, height) = image.dimensions();
-    
+
     if width != 100 || height != 100 {
         return Err(anyhow!(
             "Invalid image dimensions: {}x{} (expected 100x100)",
-            width, height
+            width,
+            height
         ));
     }
-    
+
     Ok(())
 }
 
@@ -45,16 +47,17 @@ pub fn validate_crosshair_image(path: &PathBuf) -> Result<()> {
 #[allow(dead_code)]
 pub fn load_crosshair_image(path: &PathBuf) -> Result<(Vec<u32>, u32, u32)> {
     validate_crosshair_image(path)?;
-    
-    let reader = image::io::Reader::open(path)
-        .map_err(|e| anyhow!("Failed to open image: {}", e))?;
-    
-    let image = reader.decode()
+
+    let reader =
+        image::io::Reader::open(path).map_err(|e| anyhow!("Failed to open image: {}", e))?;
+
+    let image = reader
+        .decode()
         .map_err(|e| anyhow!("Failed to decode image: {}", e))?;
-    
+
     let rgba_image = image.to_rgba8();
     let (width, height) = rgba_image.dimensions();
-    
+
     // Convert RGBA8 to ARGB32 (u32) format for softbuffer
     let pixels: Vec<u32> = rgba_image
         .chunks_exact(4)
@@ -66,6 +69,6 @@ pub fn load_crosshair_image(path: &PathBuf) -> Result<(Vec<u32>, u32, u32)> {
             (a << 24) | (r << 16) | (g << 8) | b
         })
         .collect();
-    
+
     Ok((pixels, width, height))
 }

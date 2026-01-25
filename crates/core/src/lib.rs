@@ -1,5 +1,5 @@
 //! Edge Optimizer Core Library
-//! 
+//!
 //! Shared functionality for all Edge Optimizer processes
 
 pub mod common_apps;

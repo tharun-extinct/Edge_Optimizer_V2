@@ -42,13 +42,19 @@ pub fn start_overlay(
     if !Path::new(&image_path).exists() {
         return Err(format!("Image not found: {}", image_path));
     }
-    
+
     // Find the crosshair executable (should be next to the main exe)
     let crosshair_exe = get_crosshair_exe_path()?;
-    
-    println!("[Crosshair] Starting separate process: {}", crosshair_exe.display());
-    println!("[Crosshair] Image: {}, Offset: ({}, {})", image_path, x_offset, y_offset);
-    
+
+    println!(
+        "[Crosshair] Starting separate process: {}",
+        crosshair_exe.display()
+    );
+    println!(
+        "[Crosshair] Image: {}, Offset: ({}, {})",
+        image_path, x_offset, y_offset
+    );
+
     // Kill any existing crosshair process first
     #[cfg(windows)]
     {
@@ -58,14 +64,14 @@ pub fn start_overlay(
             .stderr(Stdio::null())
             .status();
     }
-    
+
     // Spawn crosshair as detached process
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         const DETACHED_PROCESS: u32 = 0x00000008;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
-        
+
         Command::new(&crosshair_exe)
             .arg(&image_path)
             .arg(x_offset.to_string())
@@ -76,7 +82,7 @@ pub fn start_overlay(
             .spawn()
             .map_err(|e| format!("Failed to spawn crosshair process: {}", e))?;
     }
-    
+
     #[cfg(not(windows))]
     {
         Command::new(&crosshair_exe)
@@ -88,9 +94,9 @@ pub fn start_overlay(
             .spawn()
             .map_err(|e| format!("Failed to spawn crosshair process: {}", e))?;
     }
-    
+
     println!("[Crosshair] Process started successfully!");
-    
+
     Ok(OverlayHandle {
         process_name: "EdgeOptimizer_Crosshair.exe".to_string(),
     })
@@ -114,32 +120,38 @@ fn get_crosshair_exe_path() -> Result<std::path::PathBuf, String> {
     // Try to find EdgeOptimizer_Crosshair.exe next to the main executable
     if let Ok(exe_path) = std::env::current_exe() {
         let exe_dir = exe_path.parent().unwrap_or(Path::new("."));
-        
+
         // Check same directory
         let crosshair_path = exe_dir.join("EdgeOptimizer_Crosshair.exe");
         if crosshair_path.exists() {
             return Ok(crosshair_path);
         }
-        
+
         // Check release directory (for development)
-        let release_path = exe_dir.join("target").join("release").join("EdgeOptimizer_Crosshair.exe");
+        let release_path = exe_dir
+            .join("target")
+            .join("release")
+            .join("EdgeOptimizer_Crosshair.exe");
         if release_path.exists() {
             return Ok(release_path);
         }
     }
-    
+
     // Try current directory
     let current_dir = std::env::current_dir().unwrap_or_default();
     let local_path = current_dir.join("EdgeOptimizer_Crosshair.exe");
     if local_path.exists() {
         return Ok(local_path);
     }
-    
+
     // Try target/release (development)
-    let dev_path = current_dir.join("target").join("release").join("EdgeOptimizer_Crosshair.exe");
+    let dev_path = current_dir
+        .join("target")
+        .join("release")
+        .join("EdgeOptimizer_Crosshair.exe");
     if dev_path.exists() {
         return Ok(dev_path);
     }
-    
+
     Err("EdgeOptimizer_Crosshair.exe not found. Make sure it's in the same directory as the main app.".to_string())
 }

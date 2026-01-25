@@ -2,26 +2,29 @@
 mod profile_editor;
 pub mod styles;
 
-use iced::{
-    executor, Application, Command, Element, Settings, Length, Alignment, Theme, Subscription,
-    widget::{Container, Column, Row, Text, Button, Scrollable, Checkbox, TextInput, Space, Toggler},
-};
-use std::collections::{HashMap, HashSet};
-use std::time::Duration;
-use crate::profile::Profile;
 use crate::common_apps::COMMON_APPS;
 use crate::config::get_data_directory;
-use crate::profile::{load_profiles, save_profiles};
-use crate::image_picker::{open_image_picker, validate_crosshair_image};
-use crate::process::{list_processes, kill_processes, ProcessInfo};
 use crate::crosshair_overlay::{self, OverlayHandle};
+use crate::image_picker::{open_image_picker, validate_crosshair_image};
+use crate::process::{kill_processes, list_processes, ProcessInfo};
+use crate::profile::Profile;
+use crate::profile::{load_profiles, save_profiles};
 use crate::tray_flyout::TrayFlyoutManager;
-use std::sync::Mutex;
-use std::sync::mpsc::Receiver;
-use std::time::Instant;
+use iced::{
+    executor,
+    widget::{
+        Button, Checkbox, Column, Container, Row, Scrollable, Space, Text, TextInput, Toggler,
+    },
+    Alignment, Application, Command, Element, Length, Settings, Subscription, Theme,
+};
 use once_cell::sync::Lazy;
-use tray_icon::{TrayIconEvent, MouseButton, MouseButtonState};
+use std::collections::{HashMap, HashSet};
+use std::sync::mpsc::Receiver;
+use std::sync::Mutex;
+use std::time::Duration;
+use std::time::Instant;
 use tray_icon::menu::MenuEvent;
+use tray_icon::{MouseButton, MouseButtonState, TrayIconEvent};
 
 /// Global channel for tray icon events
 static TRAY_EVENT_RX: Lazy<Mutex<Option<Receiver<TrayIconEvent>>>> = Lazy::new(|| Mutex::new(None));
@@ -48,12 +51,12 @@ pub enum Message {
     SaveProfile,
     DeleteProfile,
     ActivateProfile,
-    
+
     // Process selection
     ProcessToggled(String, bool),
     RefreshProcesses,
     ProcessFilterChanged(String),
-    
+
     // Crosshair settings
     CrosshairOffsetXChanged(String),
     CrosshairOffsetYChanged(String),
@@ -65,10 +68,10 @@ pub enum Message {
     OverlayEnabledToggled(bool),
     SelectImage,
     ClearImage,
-    
+
     // Fan control
     FanSpeedMaxToggled(bool),
-    
+
     // Tray events
     TrayTick,
     TrayProfileSelected(String),
@@ -80,7 +83,7 @@ pub enum Message {
 pub struct GameOptimizer {
     profiles: Vec<Profile>,
     selected_profile_index: Option<usize>,
-    
+
     // Current editing state
     edit_name: String,
     edit_x_offset: String,
@@ -88,26 +91,26 @@ pub struct GameOptimizer {
     edit_image_path: Option<String>,
     edit_overlay_enabled: bool,
     edit_fan_speed_max: bool,
-    
+
     // Process selection (executable name -> selected)
     process_selection: HashMap<String, bool>,
-    
+
     // Live system processes
     running_processes: Vec<ProcessInfo>,
     process_filter: String,
-    
+
     // Status message
     status_message: String,
-    
+
     // Data directory
     data_dir: Option<std::path::PathBuf>,
-    
+
     // Active profile
     active_profile_name: Option<String>,
-    
+
     // Crosshair overlay handle
     overlay_handle: Option<OverlayHandle>,
-    
+
     // Tray manager (kept in app state since TrayIcon is !Send)
     tray_manager: Option<TrayFlyoutManager>,
 }
@@ -140,7 +143,7 @@ fn process_tray_events() -> TrayAction {
             DispatchMessageW(&msg);
         }
     }
-    
+
     // Check for profile activation from flyout
     if let Ok(guard) = FLYOUT_PROFILE_RX.lock() {
         if let Some(ref rx) = *guard {
@@ -150,7 +153,7 @@ fn process_tray_events() -> TrayAction {
             }
         }
     }
-    
+
     // Check for menu events (right-click context menu)
     if let Ok(guard) = MENU_EVENT_RX.lock() {
         if let Some(ref rx) = *guard {
@@ -167,16 +170,20 @@ fn process_tray_events() -> TrayAction {
             }
         }
     }
-    
+
     // Check for tray icon click events
     if let Ok(guard) = TRAY_EVENT_RX.lock() {
         if let Some(ref rx) = *guard {
             if let Ok(event) = rx.try_recv() {
                 match event {
-                    TrayIconEvent::Click { button, button_state, .. } => {
+                    TrayIconEvent::Click {
+                        button,
+                        button_state,
+                        ..
+                    } => {
                         if button == MouseButton::Left && button_state == MouseButtonState::Up {
                             let now = Instant::now();
-                            
+
                             // Check for double-click
                             let is_double_click = if let Ok(guard) = LAST_CLICK_TIME.lock() {
                                 if let Some(last_time) = *guard {
@@ -187,7 +194,7 @@ fn process_tray_events() -> TrayAction {
                             } else {
                                 false
                             };
-                            
+
                             if is_double_click {
                                 // Double-click - clear state
                                 if let Ok(mut guard) = LAST_CLICK_TIME.lock() {
@@ -214,7 +221,7 @@ fn process_tray_events() -> TrayAction {
             }
         }
     }
-    
+
     // Check if single-click timer expired (show flyout)
     let should_toggle_flyout = if let Ok(guard) = PENDING_SINGLE_CLICK.lock() {
         if *guard {
@@ -233,7 +240,7 @@ fn process_tray_events() -> TrayAction {
     } else {
         false
     };
-    
+
     if should_toggle_flyout {
         // Clear pending state
         if let Ok(mut guard) = PENDING_SINGLE_CLICK.lock() {
@@ -241,7 +248,7 @@ fn process_tray_events() -> TrayAction {
         }
         return TrayAction::ShowFlyout;
     }
-    
+
     TrayAction::None
 }
 
@@ -259,7 +266,7 @@ impl GameOptimizer {
             }
         }
     }
-    
+
     fn save_profiles_to_disk(&mut self) {
         if let Some(ref data_dir) = self.data_dir {
             match save_profiles(&self.profiles, data_dir) {
@@ -272,12 +279,13 @@ impl GameOptimizer {
             }
         }
     }
-    
+
     fn refresh_running_processes(&mut self) {
         self.running_processes = list_processes();
-        self.running_processes.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        self.running_processes
+            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     }
-    
+
     fn clear_edit_form(&mut self) {
         self.edit_name = String::new();
         self.edit_x_offset = "0".to_string();
@@ -288,7 +296,7 @@ impl GameOptimizer {
         self.process_selection.clear();
         self.selected_profile_index = None;
     }
-    
+
     fn load_profile_to_edit(&mut self, index: usize) {
         if let Some(profile) = self.profiles.get(index) {
             self.edit_name = profile.name.clone();
@@ -297,16 +305,16 @@ impl GameOptimizer {
             self.edit_image_path = profile.crosshair_image_path.clone();
             self.edit_overlay_enabled = profile.overlay_enabled;
             self.edit_fan_speed_max = profile.fan_speed_max;
-            
+
             self.process_selection.clear();
             for proc in &profile.processes_to_kill {
                 self.process_selection.insert(proc.clone(), true);
             }
-            
+
             self.selected_profile_index = Some(index);
         }
     }
-    
+
     fn get_selected_processes(&self) -> Vec<String> {
         self.process_selection
             .iter()
@@ -314,7 +322,7 @@ impl GameOptimizer {
             .map(|(name, _)| name.clone())
             .collect()
     }
-    
+
     fn activate_profile_by_name(&mut self, name: &str) {
         if let Some(index) = self.profiles.iter().position(|p| p.name == name) {
             self.selected_profile_index = Some(index);
@@ -322,7 +330,7 @@ impl GameOptimizer {
             self.activate_current_profile();
         }
     }
-    
+
     fn activate_current_profile(&mut self) {
         if let Some(index) = self.selected_profile_index {
             if let Some(profile) = self.profiles.get(index) {
@@ -333,11 +341,11 @@ impl GameOptimizer {
                 let image_path = profile.crosshair_image_path.clone();
                 let x_offset = profile.crosshair_x_offset;
                 let y_offset = profile.crosshair_y_offset;
-                
+
                 let report = kill_processes(&processes);
-                
+
                 let mut status_parts = Vec::new();
-                
+
                 if !report.killed.is_empty() {
                     status_parts.push(format!("Killed: {}", report.killed.join(", ")));
                 }
@@ -345,22 +353,25 @@ impl GameOptimizer {
                     status_parts.push(format!("Not running: {}", report.not_found.join(", ")));
                 }
                 if !report.blocklist_skipped.is_empty() {
-                    status_parts.push(format!("Protected: {}", report.blocklist_skipped.join(", ")));
+                    status_parts.push(format!(
+                        "Protected: {}",
+                        report.blocklist_skipped.join(", ")
+                    ));
                 }
-                
+
                 self.active_profile_name = Some(profile_name.clone());
-                
+
                 if fan_max {
                     status_parts.push("Fan: MAX".to_string());
                 }
-                
+
                 // Handle crosshair overlay
                 // First, stop any existing overlay
                 if let Some(ref mut handle) = self.overlay_handle {
                     handle.stop();
                 }
                 self.overlay_handle = None;
-                
+
                 // Start new overlay if enabled and image path exists
                 if overlay_enabled {
                     if let Some(ref path) = image_path {
@@ -377,15 +388,19 @@ impl GameOptimizer {
                         status_parts.push("Crosshair: No image".to_string());
                     }
                 }
-                
+
                 if status_parts.is_empty() {
                     self.status_message = format!("✅ Profile '{}' activated!", profile_name);
                 } else {
-                    self.status_message = format!("✅ Profile '{}' activated! {}", profile_name, status_parts.join(" | "));
+                    self.status_message = format!(
+                        "✅ Profile '{}' activated! {}",
+                        profile_name,
+                        status_parts.join(" | ")
+                    );
                 }
-                
+
                 self.refresh_running_processes();
-                
+
                 // Update tray with new active profile
                 self.update_tray();
             }
@@ -393,20 +408,20 @@ impl GameOptimizer {
             self.status_message = "⚠️ No profile selected to activate".to_string();
         }
     }
-    
+
     fn deactivate_profile(&mut self) {
         self.active_profile_name = None;
-        
+
         // Stop overlay when deactivating
         if let Some(ref mut handle) = self.overlay_handle {
             handle.stop();
         }
         self.overlay_handle = None;
-        
+
         self.status_message = "Profile deactivated".to_string();
         self.update_tray();
     }
-    
+
     /// Update the live crosshair overlay with new offsets (restarts if running)
     fn update_live_overlay(&mut self) {
         // Only update if we have an active overlay
@@ -416,13 +431,13 @@ impl GameOptimizer {
                 handle.stop();
             }
             self.overlay_handle = None;
-            
+
             // Restart with new offsets if we have an image
             if self.edit_overlay_enabled {
                 if let Some(ref path) = self.edit_image_path {
                     let x_offset: i32 = self.edit_x_offset.parse().unwrap_or(0);
                     let y_offset: i32 = self.edit_y_offset.parse().unwrap_or(0);
-                    
+
                     match crosshair_overlay::start_overlay(path.clone(), x_offset, y_offset) {
                         Ok(handle) => {
                             self.overlay_handle = Some(handle);
@@ -435,7 +450,7 @@ impl GameOptimizer {
             }
         }
     }
-    
+
     fn update_tray(&mut self) {
         // Update tray with current profiles
         if let Some(ref mut tray) = self.tray_manager {
@@ -443,7 +458,7 @@ impl GameOptimizer {
             tray.set_active_profile(self.active_profile_name.clone());
         }
     }
-    
+
     fn toggle_flyout(&mut self) {
         if let Some(ref mut tray) = self.tray_manager {
             if tray.is_flyout_visible() {
@@ -481,14 +496,15 @@ impl Application for GameOptimizer {
             data_dir,
             active_profile_name: None,
             overlay_handle: None,
-            tray_manager: None,  // Will be set by run() via Flags if we change approach
+            tray_manager: None, // Will be set by run() via Flags if we change approach
         };
         app.load_profiles_from_disk();
         app.refresh_running_processes();
-        
+
         // Create tray manager on main thread (inside iced's new)
         let app_config = crate::config::load_config();
-        match TrayFlyoutManager::new_with_channels(app.profiles.clone(), app_config.active_profile) {
+        match TrayFlyoutManager::new_with_channels(app.profiles.clone(), app_config.active_profile)
+        {
             Ok((tray, event_rx, menu_rx, profile_rx)) => {
                 // Store the exit menu ID
                 if let Ok(mut guard) = MENU_EXIT_ID.lock() {
@@ -511,7 +527,7 @@ impl Application for GameOptimizer {
                 eprintln!("[GUI] Failed to create tray: {}", e);
             }
         }
-        
+
         (app, Command::none())
     }
 
@@ -522,15 +538,11 @@ impl Application for GameOptimizer {
     fn subscription(&self) -> Subscription<Message> {
         // Poll for tray events (faster polling for responsive click detection)
         struct TrayPoller;
-        
-        iced::subscription::unfold(
-            std::any::TypeId::of::<TrayPoller>(),
-            (),
-            |_| async move {
-                std::thread::sleep(Duration::from_millis(50)); // 50ms for responsive clicks
-                (Message::TrayTick, ())
-            }
-        )
+
+        iced::subscription::unfold(std::any::TypeId::of::<TrayPoller>(), (), |_| async move {
+            std::thread::sleep(Duration::from_millis(50)); // 50ms for responsive clicks
+            (Message::TrayTick, ())
+        })
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -550,43 +562,43 @@ impl Application for GameOptimizer {
                     _ => {}
                 }
             }
-            
+
             Message::TrayProfileSelected(name) => {
                 self.activate_profile_by_name(&name);
             }
-            
+
             Message::TrayDeactivate => {
                 self.deactivate_profile();
             }
-            
+
             Message::TrayExit => {
                 // Clean exit
                 std::process::exit(0);
             }
-            
+
             Message::ProfileNameChanged(name) => {
                 self.edit_name = name;
             }
-            
+
             Message::ProfileSelected(index) => {
                 self.load_profile_to_edit(index);
                 self.status_message = format!("Editing profile: {}", self.edit_name);
             }
-            
+
             Message::NewProfile => {
                 self.clear_edit_form();
                 self.status_message = "Creating new profile".to_string();
             }
-            
+
             Message::SaveProfile => {
                 if self.edit_name.trim().is_empty() {
                     self.status_message = "❌ Error: Profile name cannot be empty".to_string();
                     return Command::none();
                 }
-                
+
                 let x_offset = self.edit_x_offset.parse().unwrap_or(0);
                 let y_offset = self.edit_y_offset.parse().unwrap_or(0);
-                
+
                 let profile = Profile {
                     name: self.edit_name.clone(),
                     processes_to_kill: self.get_selected_processes(),
@@ -596,7 +608,7 @@ impl Application for GameOptimizer {
                     overlay_enabled: self.edit_overlay_enabled,
                     fan_speed_max: self.edit_fan_speed_max,
                 };
-                
+
                 if let Some(index) = self.selected_profile_index {
                     self.profiles[index] = profile;
                     self.status_message = format!("✅ Updated profile: {}", self.edit_name);
@@ -605,11 +617,11 @@ impl Application for GameOptimizer {
                     self.selected_profile_index = Some(self.profiles.len() - 1);
                     self.status_message = format!("✅ Created profile: {}", self.edit_name);
                 }
-                
+
                 self.save_profiles_to_disk();
                 self.update_tray();
             }
-            
+
             Message::DeleteProfile => {
                 if let Some(index) = self.selected_profile_index {
                     let name = self.profiles[index].name.clone();
@@ -620,95 +632,94 @@ impl Application for GameOptimizer {
                     self.status_message = format!("🗑️ Deleted profile: {}", name);
                 }
             }
-            
+
             Message::ActivateProfile => {
                 self.activate_current_profile();
             }
-            
+
             Message::ProcessToggled(process, enabled) => {
                 self.process_selection.insert(process, enabled);
             }
-            
+
             Message::RefreshProcesses => {
                 self.refresh_running_processes();
-                self.status_message = format!("🔄 Refreshed: {} processes found", self.running_processes.len());
+                self.status_message = format!(
+                    "🔄 Refreshed: {} processes found",
+                    self.running_processes.len()
+                );
             }
-            
+
             Message::ProcessFilterChanged(filter) => {
                 self.process_filter = filter;
             }
-            
+
             Message::CrosshairOffsetXChanged(value) => {
                 self.edit_x_offset = value;
             }
-            
+
             Message::CrosshairOffsetYChanged(value) => {
                 self.edit_y_offset = value;
             }
-            
+
             Message::CrosshairMoveUp => {
                 let current: i32 = self.edit_y_offset.parse().unwrap_or(0);
                 self.edit_y_offset = (current - 1).to_string();
                 self.update_live_overlay();
             }
-            
+
             Message::CrosshairMoveDown => {
                 let current: i32 = self.edit_y_offset.parse().unwrap_or(0);
                 self.edit_y_offset = (current + 1).to_string();
                 self.update_live_overlay();
             }
-            
+
             Message::CrosshairMoveLeft => {
                 let current: i32 = self.edit_x_offset.parse().unwrap_or(0);
                 self.edit_x_offset = (current - 1).to_string();
                 self.update_live_overlay();
             }
-            
+
             Message::CrosshairMoveRight => {
                 let current: i32 = self.edit_x_offset.parse().unwrap_or(0);
                 self.edit_x_offset = (current + 1).to_string();
                 self.update_live_overlay();
             }
-            
+
             Message::CrosshairCenter => {
                 self.edit_x_offset = "0".to_string();
                 self.edit_y_offset = "0".to_string();
                 self.status_message = "Crosshair centered".to_string();
                 self.update_live_overlay();
             }
-            
+
             Message::OverlayEnabledToggled(enabled) => {
                 self.edit_overlay_enabled = enabled;
             }
-            
+
             Message::FanSpeedMaxToggled(enabled) => {
                 self.edit_fan_speed_max = enabled;
             }
-            
-            Message::SelectImage => {
-                match open_image_picker() {
-                    Ok(path) => {
-                        match validate_crosshair_image(&path) {
-                            Ok(_) => {
-                                let path_str = path.to_string_lossy().to_string();
-                                self.edit_image_path = Some(path_str.clone());
-                                self.status_message = format!("📁 Selected image: {}", path_str);
-                            }
-                            Err(e) => {
-                                self.status_message = format!("❌ Invalid image: {}", e);
-                            }
-                        }
+
+            Message::SelectImage => match open_image_picker() {
+                Ok(path) => match validate_crosshair_image(&path) {
+                    Ok(_) => {
+                        let path_str = path.to_string_lossy().to_string();
+                        self.edit_image_path = Some(path_str.clone());
+                        self.status_message = format!("📁 Selected image: {}", path_str);
                     }
-                    Err(_) => {}
-                }
-            }
-            
+                    Err(e) => {
+                        self.status_message = format!("❌ Invalid image: {}", e);
+                    }
+                },
+                Err(_) => {}
+            },
+
             Message::ClearImage => {
                 self.edit_image_path = None;
                 self.status_message = "Cleared crosshair image".to_string();
             }
         }
-        
+
         Command::none()
     }
 
@@ -719,11 +730,11 @@ impl Application for GameOptimizer {
             .padding(10)
             .push(Text::new("📋 Profiles").size(20))
             .push(Space::new(Length::Fill, Length::Fixed(10.0)));
-        
+
         for (i, profile) in self.profiles.iter().enumerate() {
             let is_selected = self.selected_profile_index == Some(i);
             let is_active = self.active_profile_name.as_ref() == Some(&profile.name);
-            
+
             let label = if is_active {
                 format!("🟢 {}", profile.name)
             } else if is_selected {
@@ -731,31 +742,29 @@ impl Application for GameOptimizer {
             } else {
                 profile.name.clone()
             };
-            
+
             profile_list = profile_list.push(
                 Button::new(Text::new(label))
                     .on_press(Message::ProfileSelected(i))
                     .width(Length::Fill)
-                    .padding(8)
+                    .padding(8),
             );
         }
-        
+
         profile_list = profile_list
             .push(Space::new(Length::Fill, Length::Fixed(10.0)))
             .push(
                 Button::new(Text::new("+ New Profile"))
                     .on_press(Message::NewProfile)
                     .width(Length::Fill)
-                    .padding(10)
+                    .padding(10),
             );
-        
-        let left_panel = Container::new(
-            Scrollable::new(profile_list)
-        )
-        .width(Length::Fixed(200.0))
-        .height(Length::Fill)
-        .padding(10);
-        
+
+        let left_panel = Container::new(Scrollable::new(profile_list))
+            .width(Length::Fixed(200.0))
+            .height(Length::Fill)
+            .padding(10);
+
         // Right panel - Edit form
         let edit_section = Column::new()
             .spacing(15)
@@ -972,19 +981,17 @@ impl Application for GameOptimizer {
                         }
                     )
             );
-        
-        let right_panel = Container::new(
-            Scrollable::new(edit_section)
-        )
-        .width(Length::Fill)
-        .height(Length::Fill);
-        
+
+        let right_panel = Container::new(Scrollable::new(edit_section))
+            .width(Length::Fill)
+            .height(Length::Fill);
+
         let content = Column::new()
             .push(
                 Row::new()
                     .push(left_panel)
                     .push(right_panel)
-                    .height(Length::FillPortion(9))
+                    .height(Length::FillPortion(9)),
             )
             .push(
                 Container::new(
@@ -992,17 +999,15 @@ impl Application for GameOptimizer {
                         .spacing(20)
                         .push(Text::new(&self.status_message).size(14))
                         .push(Space::new(Length::Fill, Length::Shrink))
-                        .push(
-                            if let Some(ref name) = self.active_profile_name {
-                                Text::new(format!("🟢 Active: {} | 📌 Tray", name)).size(14)
-                            } else {
-                                Text::new("No active profile | 📌 Tray").size(14)
-                            }
-                        )
+                        .push(if let Some(ref name) = self.active_profile_name {
+                            Text::new(format!("🟢 Active: {} | 📌 Tray", name)).size(14)
+                        } else {
+                            Text::new("No active profile | 📌 Tray").size(14)
+                        }),
                 )
                 .width(Length::Fill)
                 .padding(10)
-                .height(Length::FillPortion(1))
+                .height(Length::FillPortion(1)),
             );
 
         Container::new(content)
@@ -1015,10 +1020,10 @@ impl Application for GameOptimizer {
 impl GameOptimizer {
     fn render_process_selector(&self) -> Element<'_, Message> {
         let filter_lower = self.process_filter.to_lowercase();
-        
+
         let mut seen: HashSet<String> = HashSet::new();
         let mut processes_to_show: Vec<(&str, &str, Option<f32>, Option<u64>)> = Vec::new();
-        
+
         for proc in &self.running_processes {
             let name_lower = proc.name.to_lowercase();
             if !seen.contains(&name_lower) {
@@ -1028,65 +1033,78 @@ impl GameOptimizer {
                         &proc.name,
                         &proc.name,
                         Some(proc.cpu_percent),
-                        Some(proc.memory_kb)
+                        Some(proc.memory_kb),
                     ));
                 }
             }
         }
-        
+
         for (name, exe) in COMMON_APPS.iter() {
             let exe_lower = exe.to_lowercase();
             if !seen.contains(&exe_lower) {
                 if self.process_selection.get(*exe).copied().unwrap_or(false) {
-                    if filter_lower.is_empty() || exe_lower.contains(&filter_lower) || name.to_lowercase().contains(&filter_lower) {
+                    if filter_lower.is_empty()
+                        || exe_lower.contains(&filter_lower)
+                        || name.to_lowercase().contains(&filter_lower)
+                    {
                         seen.insert(exe_lower);
                         processes_to_show.push((name, exe, None, None));
                     }
                 }
             }
         }
-        
+
         processes_to_show.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
-        
+
         let mut grid = Column::new().spacing(3);
-        
+
         if processes_to_show.is_empty() {
             grid = grid.push(Text::new("No processes found matching filter").size(12));
         } else {
             for (display_name, exe_name, cpu, mem) in processes_to_show.iter().take(50) {
-                let is_selected = self.process_selection.get(*exe_name).copied().unwrap_or(false);
+                let is_selected = self
+                    .process_selection
+                    .get(*exe_name)
+                    .copied()
+                    .unwrap_or(false);
                 let exe_string = exe_name.to_string();
-                
+
                 let info = match (cpu, mem) {
-                    (Some(c), Some(m)) => format!("{} - CPU: {:.1}% | {} MB", display_name, c, m / 1024),
+                    (Some(c), Some(m)) => {
+                        format!("{} - CPU: {:.1}% | {} MB", display_name, c, m / 1024)
+                    }
                     _ => format!("{} (not running)", display_name),
                 };
-                
+
                 grid = grid.push(
                     Checkbox::new(info, is_selected)
-                        .on_toggle(move |checked| Message::ProcessToggled(exe_string.clone(), checked))
-                        .width(Length::Fill)
+                        .on_toggle(move |checked| {
+                            Message::ProcessToggled(exe_string.clone(), checked)
+                        })
+                        .width(Length::Fill),
                 );
             }
-            
+
             if processes_to_show.len() > 50 {
                 grid = grid.push(
-                    Text::new(format!("... and {} more (use filter)", processes_to_show.len() - 50)).size(12)
+                    Text::new(format!(
+                        "... and {} more (use filter)",
+                        processes_to_show.len() - 50
+                    ))
+                    .size(12),
                 );
             }
         }
-        
-        Container::new(
-            Scrollable::new(grid).height(Length::Fixed(200.0))
-        )
-        .width(Length::Fill)
-        .into()
+
+        Container::new(Scrollable::new(grid).height(Length::Fixed(200.0)))
+            .width(Length::Fill)
+            .into()
     }
 }
 
 pub fn run() -> iced::Result {
     println!("[GUI] Starting GUI with integrated tray...");
-    
+
     // Tray is created inside Application::new() on main thread
     let result = GameOptimizer::run(Settings {
         window: iced::window::Settings {
@@ -1096,7 +1114,7 @@ pub fn run() -> iced::Result {
         },
         ..Default::default()
     });
-    
+
     println!("[GUI] Iced returned: {:?}", result);
     result
 }

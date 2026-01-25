@@ -1,5 +1,5 @@
 //! EdgeOptimizer.Settings - Main GUI Process
-//! 
+//!
 //! This process manages:
 //! - Main settings window (full GUI application)
 //! - Flyout window (quick access flyout)
@@ -8,22 +8,22 @@
 
 // #![windows_subsystem = "windows"]  // Temporarily disabled for debugging
 
-use std::process::{Command, Stdio};
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 use edge_optimizer_core::gui;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
-    
+
     tracing::info!("EdgeOptimizer.Settings starting...");
-    
+
     // Spawn the Runner process (manages system tray)
     spawn_runner_process();
-    
+
     // Run the GUI application
     gui::run()?;
-    
+
     Ok(())
 }
 
@@ -32,7 +32,7 @@ fn spawn_runner_process() {
     if let Ok(exe_path) = std::env::current_exe() {
         let exe_dir = exe_path.parent().unwrap_or(Path::new("."));
         let runner_path = exe_dir.join("EdgeOptimizer_Runner.exe");
-        
+
         if runner_path.exists() {
             tracing::info!("Spawning Runner process: {:?}", runner_path);
             match Command::new(&runner_path)

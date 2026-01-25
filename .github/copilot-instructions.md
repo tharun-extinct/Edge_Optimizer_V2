@@ -47,6 +47,23 @@ EdgeOptimizer.Runner   -> separate process that manages the system tray icon
 EdgeOptimizer.Crosshair -> Crosshair overlay
 
 
+```flow 
+Runner                                Settings
+  │                                      │
+  │  1. User clicks tray icon            │
+  │                                      │
+  │  2. Runner sends IPC message ───────→│
+  │     (via Named Pipe)                 │
+  │                                      │
+  │                                      │  3. Settings receives on
+  │                                      │     background thread
+  │                                      │
+  │                                      │  4. Marshals to UI thread
+  │                                      │     via DispatcherQueue
+  │                                      │
+  │                                      │  5. Shows FlyoutWindow
+  │                                      ↓
+```
 
 
 ## EdgeOptimizer.Settings Process 
