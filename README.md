@@ -1,322 +1,312 @@
-# Gaming Optimizer
+# 🎮 Edge Optimizer
 
-A comprehensive Rust desktop application for Windows that optimizes gaming performance through an intuitive GUI interface. Features process management, customizable crosshair overlays, and gaming profile management with system tray integration.
+**Built by Gamers, For Gamers**
 
-## Features
+Edge Optimizer is your ultimate gaming companion - a powerful Windows application that boosts gaming performance by eliminating resource-hungry background processes, adding custom crosshair overlays, and optimizing your system for peak gaming performance.
 
-### 🎮 Complete GUI Application
-- **Modern Interface**: Full-featured GUI built with ICED framework
-- **Profile Management**: Create, edit, save, and delete gaming profiles through visual interface
-- **Live Process Browser**: Browse and select running processes to terminate
-- **Real-time Status**: Live feedback on all operations and system state
+> **Why Edge Optimizer?**  
+> Every millisecond matters in competitive gaming. Edge Optimizer gives you the edge by freeing up system resources, reducing input lag, and enhancing your aiming precision with customizable crosshairs.
 
-### 🎯 Advanced Crosshair Overlay
-- **Custom PNG Crosshairs**: Support for any PNG image with transparency
-- **Live Position Adjustment**: Arrow buttons for pixel-perfect crosshair positioning
-- **Independent Process**: Crosshair runs as separate executable that survives app closure
-- **DWM Composition**: Uses Windows Desktop Window Manager like Xbox Game Bar for fullscreen compatibility
-- **Click-through**: Completely transparent to mouse clicks
-- **Always-on-top**: Aggressive topmost enforcement for gaming compatibility
+---
 
-### ⚡ Process Optimization
-- **Smart Process Killing**: Automatically terminate unwanted background applications
-- **Safety Protection**: Built-in blocklist prevents killing critical system processes
-- **Live Process List**: Real-time view of running processes with CPU/memory stats
-- **Process Filtering**: Search and filter through running applications
+### 🎯 **Custom Crosshair Overlays**
+Gain aiming precision with fully customizable PNG crosshairs that work seamlessly over fullscreen games (Fortnite, Valorant, CS2, and more).
+- Pixel-perfect positioning with live adjustments
+- Works like Xbox Game Bar - no game interference
+- Click-through design - never blocks your shots
+- Survives game crashes and app restarts
 
-### 🎮 Gaming Profiles
-- **Multiple Profiles**: Create unlimited gaming profiles for different games
-- **One-click Activation**: Switch between profiles instantly
-- **Process Groups**: Define which processes to kill per profile
-- **Crosshair Settings**: Per-profile crosshair configuration
-- **Fan Control**: Optional max fan speed toggle for better cooling
+### ⚡ **Kill Resource Hogs**
+Free up RAM, CPU, and network bandwidth by automatically terminating unwanted background apps before gaming.
+- One-click process termination (Discord, Chrome, Spotify, etc.)
+- Built-in safety - won't kill critical Windows processes
+- Live process monitor with CPU/memory usage
+- Create custom process kill lists per game
 
-### 🖥️ System Tray Integration
-- **Quick Access**: Tray icon for instant profile switching
-- **Minimize to Tray**: Application minimizes to system tray
-- **Context Menu**: Full profile management from tray
-- **Status Indicators**: Visual feedback on active profiles
+### 🎮 **Gaming Profiles**
+Create unlimited profiles for different games with unique settings for each.
+- Save crosshair positions per game
+- Custom process kill lists per profile
+- One-click profile switching from system tray
+- Instant activation before launching your game
 
-### 🔧 Advanced Features
-- **Crosshair Centering**: One-click reset to screen center
-- **Offset Controls**: Fine-tune crosshair position with live preview
-- **Image Validation**: Automatic PNG validation and error reporting
-- **Profile Persistence**: Automatic saving and loading of all settings
-- **Low Resource Usage**: Optimized for minimal system impact
+### 🖥️ **System Tray Integration**
+Quick access without cluttering your screen - perfect for in-game adjustments.
+- Left-click: Quick flyout menu
+- Right-click: Full context menu
+- Double-click: Open full settings
+- Always accessible, never intrusive
 
-## Tech Stack
+---
 
-- **Language**: Rust (2021 edition)
-- **GUI Framework**: ICED - Modern, cross-platform GUI library
-- **Platform**: Windows 10/11 only
-- **System Integration**:
-  - `windows` crate - Direct Windows API access for DWM composition
-  - `tray-icon` - System tray functionality
-  - `sysinfo` - Process enumeration and management
-  - `image` - PNG loading and processing
-  - `rfd` - Native file dialogs
+## ⚡ Quick Start Guide
 
-## Build Requirements
+### 📥 **Installation**
 
-- Rust 1.70+ (with cargo)
+1. **Download the latest release** from the [Releases page](../../releases)
+2. **Extract the ZIP file** to a folder of your choice
+3. **Run** `EdgeOptimizer_Settings.exe`
+
+That's it! No installation required - just extract and run.
+
+### 🛠️ **Building from Source**
+
+**Requirements:**
+- [Rust](https://rustup.rs/) 1.70+ (with cargo)
 - Windows 10/11
 - Visual Studio Build Tools (for Windows API)
 
-## Building
+**Build Commands:**
+```powershell
+# Clone the repository
+git clone https://github.com/yourusername/EdgeOptimizer.git
+cd EdgeOptimizer
 
-### Debug Build
-```bash
-cargo build
-```
-
-### Release Build (Optimized)
-```bash
+# Build in release mode (optimized for gaming)
 cargo build --release
+
+# Build all components
+cargo build --release -p edge_optimizer_settings
+cargo build --release -p edge_optimizer_runner
+cargo build --release -p edge_optimizer_crosshair
 ```
 
-The release build is optimized for:
-- Small binary size (LTO enabled, symbols stripped)
-- Fast execution (opt-level 3)
-- Low memory footprint
+**Executables will be in:**
+- `target\release\EdgeOptimizer_Settings.exe` - Main GUI application
+- `target\release\EdgeOptimizer_Runner.exe` - System tray manager
+- `target\release\EdgeOptimizer_Crosshair.exe` - Crosshair overlay
 
-### Output Location
-- Debug: `target/debug/gaming_optimizer.exe`
-- Release: `target/release/gaming_optimizer.exe`
-- Crosshair: `target/release/crosshair.exe` (separate process)
+### 🎮 **Running the Application**
 
-## Running
+```powershell
+# Run the release build (recommended for gaming)
+.\target\release\EdgeOptimizer_Settings.exe
 
-```bash
-# Run debug build
-cargo run
+# Or build and run directly
+cargo run -p edge_optimizer_settings --release
 
-# Run release build
-cargo run --release
-
-# Or run the executable directly
-./target/release/gaming_optimizer.exe
+# Development mode (debug build)
+cargo run -p edge_optimizer_settings
 ```
 
-The application will start with a full GUI window. You can minimize it to the system tray for background operation.
+---
 
-## Configuration
+## 📖 How to Use Edge Optimizer
 
-### Data Directory
+### **Step 1: Create Your First Gaming Profile**
 
-The application automatically stores configuration and profiles in:
-```
-%APPDATA%\GamingOptimizer\
-├── profiles.json        # Gaming profiles (auto-managed)
-└── crosshairs/          # Optional: Store crosshair images here
-```
+1. **Launch Edge Optimizer** by running `EdgeOptimizer_Settings.exe`
+2. **Click "New Profile"** button
+3. **Name your profile** (e.g., "Fortnite", "Valorant", "CS2")
+4. **Select processes to kill:**
+   - Check the boxes next to apps you want closed (Discord, Chrome, etc.)
+   - Use the search box to filter processes quickly
+   - Click "Refresh" to update the process list
+5. **Add a crosshair (optional):**
+   - Click "Select Image" to choose your PNG crosshair
+   - Use arrow buttons ▲▼◀▶ to position it perfectly
+   - Click ⊙ to center on screen
+6. **Save your profile**
 
-### Using the GUI
+### **Step 2: Activate Before Gaming**
 
-#### Creating Your First Profile
-1. **Launch the application**
-2. **Click "New Profile"** in the top-left
-3. **Enter a profile name** (e.g., "Fortnite", "CS2", "Valorant")
-4. **Configure settings**:
-   - **Process Selection**: Browse running processes and check which ones to kill
-   - **Crosshair**: Click "Select Image" to choose a PNG crosshair
-   - **Position**: Use arrow buttons (▲▼◀▶) to adjust crosshair position
-   - **Fan Control**: Toggle "Max Fan Speed" if desired
-5. **Click "Save Profile"**
-
-#### Activating a Profile
-1. **Select a profile** from the left panel
+1. **Select your profile** from the list
 2. **Click "Activate Profile"**
-3. The app will:
-   - Kill all selected processes
-   - Launch the crosshair overlay (if configured)
-   - Show status messages for all operations
+3. Edge Optimizer will:
+   - ✅ Close all selected background processes
+   - ✅ Launch your crosshair overlay (if configured)
+   - ✅ Show confirmation messages
+4. **Launch your game** and dominate!
 
-#### Adjusting Crosshair Live
-- **Arrow Buttons**: Click ▲▼◀▶ to move crosshair by 1 pixel
-- **Center Button**: Click ⊙ to reset to screen center
-- **Changes apply instantly** - no need to reactivate profile
+### **Step 3: Quick Access from System Tray**
 
-#### Managing Processes
-- **Refresh Button**: Updates the live process list
-- **Filter Box**: Search for specific processes
-- **Checkboxes**: Select which processes to kill when profile activates
+Once running, Edge Optimizer lives in your system tray:
+- **Left-click**: Open quick flyout menu
+- **Right-click**: Context menu (Settings, Documentation, Exit)
+- **Double-click**: Open full settings window
 
-## Crosshair Requirements
+**Pro Tip:** Minimize to tray and use the quick flyout for instant profile switching between games!
 
-- **Format**: PNG with transparency support
-- **Size**: Any size (automatically centered)
-- **Transparency**: Alpha channel for proper blending
-- **Location**: Any accessible path (file picker included)
+---
 
-The application validates images automatically and shows error messages for invalid files.
+## 🎯 Crosshair Setup Guide
 
-## Fullscreen Game Compatibility
+### **Requirements:**
+- **PNG image** with transparency
+- Any size (automatically centered)
+- Transparency/alpha channel support
 
-### How It Works
-The crosshair uses **DWM (Desktop Window Manager) composition** - the same technology that powers:
-- Xbox Game Bar overlays
-- Discord in-game overlays
-- NVIDIA GeForce Experience overlays
+### **Works With:**
+✅ Fortnite (Fullscreen mode)  
+✅ Valorant  
+✅ CS2 (Counter-Strike 2)  
+✅ Apex Legends  
+✅ Call of Duty  
+✅ Rainbow Six Siege  
+✅ Most modern games using "Fullscreen" mode
+
+### **How It Works:**
+Edge Optimizer uses **Desktop Window Manager (DWM)** technology - the same tech that powers:
+- Xbox Game Bar
+- Discord overlays
+- NVIDIA GeForce Experience
 - Steam overlay
 
-### Fortnite Fullscreen Support
-**✅ Works with Fortnite "Fullscreen" mode** (default setting)
+### **Fortnite Fullscreen Fix:**
+If your crosshair doesn't appear in Fortnite:
+1. Navigate to Fortnite installation folder
+2. Right-click `FortniteClient-Win64-Shipping.exe`
+3. Go to **Properties → Compatibility**
+4. **UNCHECK** "Disable fullscreen optimizations"
+5. Click OK and restart Fortnite
 
-Modern Windows automatically enables "Fullscreen Optimizations" which secretly uses borderless windowed mode internally. This allows DWM overlays to appear.
+---
 
-**To ensure compatibility:**
-1. Right-click `FortniteClient-Win64-Shipping.exe`
-2. Properties → Compatibility
-3. **UNCHECK** "Disable fullscreen optimizations" (leave it enabled)
+## 🛡️ Safety & Protected Processes
 
-### True Exclusive Fullscreen
-❌ **Will NOT work** with true exclusive fullscreen (optimizations disabled). This is rare and only used by very old games.
+Edge Optimizer **prevents you from killing critical Windows processes** that could crash your system:
 
-## Protected Processes
-
-The following critical Windows processes cannot be killed for system stability:
-
+🔒 **Protected processes include:**
 - `csrss.exe` - Client Server Runtime
 - `dwm.exe` - Desktop Window Manager
 - `explorer.exe` - Windows Explorer
 - `lsass.exe` - Local Security Authority
-- `services.exe` - Services Control Manager
-- `smss.exe` - Session Manager
-- `system` - System process
-- `wininit.exe` - Windows Init
-- `winlogon.exe` - Windows Logon
 - `svchost.exe` - Service Host
+- `system` - System process
+- `winlogon.exe` - Windows Logon
 
-## Usage Workflow
+These processes are **automatically blocked** to ensure system stability.
 
-### Gaming Session Setup
-1. **Launch Gaming Optimizer**
-2. **Create/select your game profile**
-3. **Configure processes to kill** (Discord, browsers, etc.)
-4. **Set up crosshair** (select PNG, adjust position)
-5. **Activate profile** before launching game
-6. **Launch your game** in fullscreen mode
-7. **Crosshair appears automatically** over the game
+---
 
-### During Gaming
-- Crosshair stays visible over fullscreen games
-- Use tray icon for quick profile switching
-- Crosshair survives if main app closes
-- Adjust position anytime with arrow controls
+## 📂 Configuration & Files
 
-### Ending Session
-- Deactivate profile to restore killed processes
-- Or simply exit the game (processes auto-restart)
-
-## System Tray Features
-
-- **Profile Switching**: Quick access to all profiles
-- **Overlay Toggle**: Show/hide crosshair instantly
-- **Minimize**: GUI minimizes to tray
-- **Exit**: Clean shutdown of all components
-
-## Troubleshooting
-
-### Crosshair not showing over game
-- Ensure game uses "Fullscreen" (not "Windowed Fullscreen")
-- Check "Disable fullscreen optimizations" is **unchecked** in game properties
-- Verify crosshair image is valid PNG with transparency
-- Try activating profile after game is running
-
-### Processes not killing
-- Verify process names are correct (include .exe)
-- Check if process is in protected list
-- Try running Gaming Optimizer as administrator
-- Some processes may require special permissions
-
-### GUI not responding
-- Check Windows Event Viewer for errors
-- Ensure all Windows features are enabled
-- Try running as administrator
-
-### Crosshair position wrong
-- Use arrow buttons (▲▼◀▶) to adjust live
-- Click ⊙ to center on screen
-- Changes apply instantly without restarting
-
-## Project Structure
-
+Edge Optimizer stores all settings in:
 ```
-Gaming_optimizer/
-├── Cargo.toml              # Dependencies and build config
-├── src/
-│   ├── main.rs             # Application entry point
-│   ├── gui/
-│   │   ├── mod.rs          # Main ICED GUI application
-│   │   ├── profile_editor.rs # Profile editing interface
-│   │   └── styles.rs       # UI theming
-│   ├── bin/
-│   │   └── crosshair.rs    # Standalone crosshair process
-│   ├── crosshair_overlay.rs # Crosshair launcher
-│   ├── tray.rs             # System tray management
-│   ├── process.rs          # Process enumeration/killing
-│   ├── profile.rs          # Profile data structures
-│   ├── config.rs           # Configuration management
-│   ├── image_picker.rs     # File dialog utilities
-│   ├── common_apps.rs      # Common application database
-│   └── ipc.rs              # Inter-process communication
-├── target/
-│   ├── debug/              # Debug builds
-│   └── release/            # Release builds (gaming_optimizer.exe, crosshair.exe)
+%APPDATA%\EdgeOptimizer\
+├── profiles.json        # Your gaming profiles
+└── crosshairs/          # (Optional) Store crosshair images here
+```
+
+All configuration is **automatically saved** - no manual file editing required!
+
+---
+
+## 🐛 Troubleshooting
+
+### **Crosshair not appearing over game**
+- ✅ Ensure game is in **"Fullscreen"** mode (not "Windowed Fullscreen")
+- ✅ Check game exe properties: **uncheck** "Disable fullscreen optimizations"
+- ✅ Verify your PNG image has transparency
+- ✅ Try activating profile **after** game is running
+
+### **Processes not closing**
+- ✅ Verify process names include `.exe` extension
+- ✅ Check if process is in the protected list
+- ✅ Try running Edge Optimizer as **Administrator**
+- ✅ Some processes require special permissions
+
+### **Application won't start**
+- ✅ Ensure you have **Visual Studio C++ Redistributables** installed
+- ✅ Check Windows Event Viewer for error details
+- ✅ Try running as Administrator
+- ✅ Verify Windows 10/11 (older versions not supported)
+
+### **Crosshair position is off**
+- Use **arrow buttons** (▲▼◀▶) to adjust position
+- Click **⊙ button** to reset to screen center
+- Changes apply **instantly** - no restart needed
+
+---
+
+## 🔧 For Developers
+
+### **Project Structure**
+```
+EdgeOptimizer/
+├── crates/
+│   ├── core/              # Shared library
+│   │   └── src/
+│   │       ├── common_apps.rs      # Common app database
+│   │       ├── config.rs           # Config management
+│   │       ├── crosshair_overlay.rs # Crosshair launcher
+│   │       ├── flyout.rs           # Flyout window
+│   │       ├── ipc.rs              # Inter-process communication
+│   │       ├── process.rs          # Process management
+│   │       └── profile.rs          # Profile data structures
+│   ├── settings/          # Main GUI application
+│   ├── runner/            # System tray manager
+│   └── crosshair/         # Crosshair overlay process
+├── Cargo.toml             # Workspace configuration
 └── README.md
 ```
 
-## Development
+### **Tech Stack**
+- **Language:** Rust 2021 Edition
+- **GUI Framework:** [Iced](https://github.com/iced-rs/iced) - Modern, reactive GUI
+- **System Tray:** [tray-icon](https://crates.io/crates/tray-icon)
+- **Process Management:** [sysinfo](https://crates.io/crates/sysinfo)
+- **Image Handling:** [image](https://crates.io/crates/image)
+- **Windows APIs:** [windows-rs](https://github.com/microsoft/windows-rs)
 
-### Testing
-```bash
+### **Development Commands**
+```powershell
 # Run tests
 cargo test
 
-# Run tests with output
-cargo test -- --nocapture
-```
-
-### Code Quality
-```bash
 # Format code
 cargo fmt
 
 # Run linter
 cargo clippy
+
+# Build debug version
+cargo build
+
+# Run debug version
+cargo run -p edge_optimizer_settings
 ```
 
-## Known Limitations
+---
 
-- **Windows only** - Uses Windows-specific DWM APIs
-- **Single monitor** - Centers on primary display only
-- **Manual activation** - No auto-detection of running games
-- **PNG only** - Crosshair images must be PNG format
+## 🚀 Roadmap & Future Features
 
-## Future Enhancements
+- [ ] Multi-monitor support with monitor selection
+- [ ] Auto-detect games and activate profiles automatically
+- [ ] Global hotkeys for overlay toggle
+- [ ] Built-in crosshair library
+- [ ] Performance metrics overlay (FPS, CPU, RAM)
+- [ ] Network optimization tools (reduce latency)
+- [ ] Power plan optimization
+- [ ] Profile import/export and sharing
+- [ ] Advanced process rules (CPU/memory thresholds)
+- [ ] Custom crosshair designer
+- [ ] Overlay opacity controls
 
-Potential features for future versions:
+---
 
-- Multi-monitor support with monitor selection
-- Game detection and auto-profile activation
-- Global hotkeys for overlay toggle
-- Crosshair library with built-in designs
-- Performance metrics overlay
-- Profile sharing/import
-- Advanced process rules (CPU/memory thresholds)
-- Custom crosshair shapes (not just images)
-- Overlay opacity controls
-- Profile scheduling (time-based activation)
-
-## License
+## 📜 License
 
 This project is provided as-is for gaming optimization purposes.
 
-## Support
+---
 
-For issues or questions:
-1. Check this README for common solutions
-2. Verify game compatibility settings
-3. Test with different fullscreen modes
-4. Check application status messages
-5. Ensure proper administrator permissions
+## 💬 Support & Community
+
+**Need help?**
+1. Check the [Troubleshooting](#-troubleshooting) section
+2. Review game compatibility settings
+3. Open an [Issue](../../issues) on GitHub
+
+**Have feedback or suggestions?** We'd love to hear from you!
+
+---
+
+<div align="center">
+
+**Built by Gamers, For Gamers** 🎮
+
+Made with ❤️ and Rust
+
+</div>
+
