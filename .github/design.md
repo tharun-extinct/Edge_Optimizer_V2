@@ -425,7 +425,7 @@ const PROTECTED_PROCESSES: &[&str] = &[
 ```mermaid
 stateDiagram-v2
     [*] --> ListProcesses
-    ListProcesses --> FilterTarget: sysinfo::System
+    ListProcesses --> FilterTarget: Query via sysinfo
     FilterTarget --> CheckProtected: Normalize names
     CheckProtected --> Kill: Not protected
     CheckProtected --> Skip: Protected
