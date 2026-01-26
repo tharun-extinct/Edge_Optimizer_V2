@@ -18,6 +18,7 @@ description: High-performance RUST-based gaming optimization application
     - Break down the problem into smaller parts (Create Todo list)
     - Focus on performance and low latency optimizations
     - Ask when anything's unclear (might be tech stack or feature related but never assume)
+    - Don't implement any feature, until it's explicitly mentioned
 
 
 - Refining Ideas:
@@ -77,7 +78,9 @@ UI elements can only be modified on the thread that created them. DispatcherQueu
         - Left single-click → Opens flyout window
         - Left double-click → Opens full Settings window (If already open, brings to front)
 
-
+✅ System Tray Icon Management     │  ← ONLY HERE
+│   ✅ Tray Icon Window Procedure      │
+│   ✅ Context Menu Handling 
 
 
 ```Architecture
@@ -87,7 +90,9 @@ UI elements can only be modified on the thread that created them. DispatcherQueu
 │                                      │
 │   ┌──────────────────────────────┐   │
 │   │  System Tray Icon            │   │  ← ONLY Runner has this
-│   │                              │   │
+│   │  Context Menu Handling       |   │
+|   |  Tray Icon Window Procedure  |      
+│   │                              |
 │   └──────────────────────────────┘   │
 │                                      │
 └──────────────────────────────────────┘
