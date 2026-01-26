@@ -74,13 +74,10 @@ UI elements can only be modified on the thread that created them. DispatcherQueu
 - Runner manages tray, sends IPC to Settings (via Named Pipes), Settings uses DispatcherQueue to marshal to UI thread → Show flyout (UI thread)
 
     ### Tray Icon Behavior
-        - Right-click → Shows traditional context menu (Settings [Double clicks opens Main GUI], Documentation, Report Bug, Close)
+        - Right-click → Shows context menu (Settings, Documentation, Report Bug, Close)
         - Left single-click → Opens flyout window
         - Left double-click → Opens full Settings window (If already open, brings to front)
 
-✅ System Tray Icon Management     │  ← ONLY HERE
-│   ✅ Tray Icon Window Procedure      │
-│   ✅ Context Menu Handling 
 
 
 ```Architecture
@@ -91,8 +88,8 @@ UI elements can only be modified on the thread that created them. DispatcherQueu
 │   ┌──────────────────────────────┐   │
 │   │  System Tray Icon            │   │  ← ONLY Runner has this
 │   │  Context Menu Handling       |   │
-|   |  Tray Icon Window Procedure  |      
-│   │                              |
+|   |  Tray Icon Window Procedure  |   |  
+│   │                              |   │
 │   └──────────────────────────────┘   │
 │                                      │
 └──────────────────────────────────────┘
