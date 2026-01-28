@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+use crate::macro_config::MacroConfig;
+
 /// Gaming profile containing optimization settings and crosshair configuration
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Profile {
@@ -14,6 +16,9 @@ pub struct Profile {
     pub overlay_enabled: bool,
     #[serde(default)]
     pub fan_speed_max: bool,
+    /// Gaming macros for this profile
+    #[serde(default)]
+    pub macros: MacroConfig,
 }
 
 impl Profile {
@@ -101,6 +106,7 @@ pub fn create_profile(name: String) -> Profile {
         crosshair_y_offset: 0,
         overlay_enabled: true,
         fan_speed_max: false,
+        macros: MacroConfig::default(),
     }
 }
 

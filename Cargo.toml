@@ -4,6 +4,7 @@ members = [
     "crates/settings",
     "crates/runner",
     "crates/crosshair",
+    "crates/macro",
 ]
 resolver = "2"
 

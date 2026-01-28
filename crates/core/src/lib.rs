@@ -14,6 +14,7 @@ pub mod flyout;
 pub mod gui;
 pub mod image_picker;
 pub mod ipc;
+pub mod macro_config;
 pub mod process;
 pub mod profile;
 pub mod tray_flyout; // Legacy, may be removed

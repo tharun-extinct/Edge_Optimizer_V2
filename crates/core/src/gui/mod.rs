@@ -4,6 +4,7 @@
 /// - This GUI is owned by the Settings process
 /// - Runner process owns the system tray and sends IPC messages
 /// - We receive ShowFlyout/BringMainToFront commands via IPC from Runner
+pub mod macro_editor;
 mod profile_editor;
 pub mod styles;
 
@@ -13,6 +14,7 @@ use crate::crosshair_overlay::{self, OverlayHandle};
 use crate::flyout::FlyoutWindow;
 use crate::image_picker::{open_image_picker, validate_crosshair_image};
 use crate::ipc::{GuiToTray, NamedPipeClient, TrayToGui};
+use crate::macro_config::MacroConfig;
 use crate::process::{kill_processes, list_processes, ProcessInfo};
 use crate::profile::Profile;
 use crate::profile::{load_profiles, save_profiles};
@@ -48,8 +50,19 @@ pub struct GuiFlags {
     pub ipc_client: Option<std::sync::Arc<Mutex<NamedPipeClient>>>,
 }
 
+/// Application pages for navigation
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Page {
+    #[default]
+    Profiles,
+    Macros,
+}
+
 #[derive(Debug, Clone)]
 pub enum Message {
+    // Navigation
+    NavigateTo(Page),
+
     // Profile management
     ProfileNameChanged(String),
     ProfileSelected(usize),
@@ -78,6 +91,10 @@ pub enum Message {
     // Fan control
     FanSpeedMaxToggled(bool),
 
+    // Macro editor
+    MacroMessage(macro_editor::MacroMessage),
+    SaveMacros,
+
     // IPC events from Runner
     IpcTick,
     IpcShowFlyout,
@@ -92,8 +109,14 @@ pub enum Message {
 }
 
 pub struct GameOptimizer {
+    // Current page
+    current_page: Page,
+
     profiles: Vec<Profile>,
     selected_profile_index: Option<usize>,
+
+    // Macro editor state
+    macro_editor_state: macro_editor::MacroEditorState,
 
     // Current editing state
     edit_name: String,
@@ -493,8 +516,10 @@ impl Application for GameOptimizer {
     fn new(flags: GuiFlags) -> (Self, Command<Message>) {
         let data_dir = get_data_directory().ok();
         let mut app = GameOptimizer {
+            current_page: Page::default(),
             profiles: Vec::new(),
             selected_profile_index: None,
+            macro_editor_state: macro_editor::MacroEditorState::default(),
             edit_name: String::new(),
             edit_x_offset: "0".to_string(),
             edit_y_offset: "0".to_string(),
@@ -546,6 +571,41 @@ impl Application for GameOptimizer {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::NavigateTo(page) => {
+                self.current_page = page;
+                // When switching to Macros page, load macros from selected profile
+                if page == Page::Macros {
+                    if let Some(index) = self.selected_profile_index {
+                        if let Some(profile) = self.profiles.get(index) {
+                            self.macro_editor_state = macro_editor::MacroEditorState::new(
+                                profile.macros.macros.clone()
+                            );
+                        }
+                    } else {
+                        self.macro_editor_state = macro_editor::MacroEditorState::default();
+                    }
+                }
+            }
+
+            Message::MacroMessage(macro_msg) => {
+                self.macro_editor_state.update(macro_msg);
+            }
+
+            Message::SaveMacros => {
+                // Save macros back to the selected profile
+                if let Some(index) = self.selected_profile_index {
+                    if let Some(profile) = self.profiles.get_mut(index) {
+                        profile.macros = MacroConfig {
+                            macros: self.macro_editor_state.macros.clone(),
+                        };
+                        self.save_profiles_to_disk();
+                        self.status_message = "✅ Macros saved".to_string();
+                    }
+                } else {
+                    self.status_message = "⚠️ Select a profile first to save macros".to_string();
+                }
+            }
+
             Message::IpcTick => {
                 // Process IPC messages from Runner
                 if let Some(ipc_msg) = process_ipc_messages() {
@@ -603,6 +663,12 @@ impl Application for GameOptimizer {
                 let x_offset = self.edit_x_offset.parse().unwrap_or(0);
                 let y_offset = self.edit_y_offset.parse().unwrap_or(0);
 
+                // Preserve existing macros if updating, or create default for new
+                let existing_macros = self.selected_profile_index
+                    .and_then(|i| self.profiles.get(i))
+                    .map(|p| p.macros.clone())
+                    .unwrap_or_default();
+
                 let profile = Profile {
                     name: self.edit_name.clone(),
                     processes_to_kill: self.get_selected_processes(),
@@ -611,6 +677,7 @@ impl Application for GameOptimizer {
                     crosshair_y_offset: y_offset,
                     overlay_enabled: self.edit_overlay_enabled,
                     fan_speed_max: self.edit_fan_speed_max,
+                    macros: existing_macros,
                 };
 
                 if let Some(index) = self.selected_profile_index {
@@ -728,6 +795,76 @@ impl Application for GameOptimizer {
     }
 
     fn view(&self) -> Element<'_, Message> {
+        // Navigation sidebar (leftmost)
+        let nav_sidebar = Column::new()
+            .spacing(5)
+            .padding(10)
+            .width(Length::Fixed(120.0))
+            .push(Text::new("📌 Navigation").size(16))
+            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
+            .push(
+                Button::new(
+                    Text::new(if self.current_page == Page::Profiles { "▶ Profiles" } else { "  Profiles" })
+                        .size(14)
+                )
+                .on_press(Message::NavigateTo(Page::Profiles))
+                .width(Length::Fill)
+                .padding(10),
+            )
+            .push(
+                Button::new(
+                    Text::new(if self.current_page == Page::Macros { "▶ Macros" } else { "  Macros" })
+                        .size(14)
+                )
+                .on_press(Message::NavigateTo(Page::Macros))
+                .width(Length::Fill)
+                .padding(10),
+            );
+
+        let nav_panel = Container::new(nav_sidebar)
+            .height(Length::Fill);
+
+        // Main content based on current page
+        let main_content: Element<'_, Message> = match self.current_page {
+            Page::Profiles => self.render_profiles_page(),
+            Page::Macros => self.render_macros_page(),
+        };
+
+        // Status bar
+        let status_bar = Container::new(
+            Row::new()
+                .spacing(20)
+                .push(Text::new(&self.status_message).size(14))
+                .push(Space::new(Length::Fill, Length::Shrink))
+                .push(if let Some(ref name) = self.active_profile_name {
+                    Text::new(format!("🟢 Active: {} | 📌 Tray", name)).size(14)
+                } else {
+                    Text::new("No active profile | 📌 Tray").size(14)
+                }),
+        )
+        .width(Length::Fill)
+        .padding(10)
+        .height(Length::Fixed(40.0));
+
+        let content = Column::new()
+            .push(
+                Row::new()
+                    .push(nav_panel)
+                    .push(main_content)
+                    .height(Length::Fill),
+            )
+            .push(status_bar);
+
+        Container::new(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    }
+}
+
+impl GameOptimizer {
+    /// Render the Profiles page
+    fn render_profiles_page(&self) -> Element<'_, Message> {
         // Left panel - Profile list
         let mut profile_list = Column::new()
             .spacing(5)
@@ -990,38 +1127,46 @@ impl Application for GameOptimizer {
             .width(Length::Fill)
             .height(Length::Fill);
 
-        let content = Column::new()
-            .push(
-                Row::new()
-                    .push(left_panel)
-                    .push(right_panel)
-                    .height(Length::FillPortion(9)),
-            )
-            .push(
-                Container::new(
-                    Row::new()
-                        .spacing(20)
-                        .push(Text::new(&self.status_message).size(14))
-                        .push(Space::new(Length::Fill, Length::Shrink))
-                        .push(if let Some(ref name) = self.active_profile_name {
-                            Text::new(format!("🟢 Active: {} | 📌 Tray", name)).size(14)
-                        } else {
-                            Text::new("No active profile | 📌 Tray").size(14)
-                        }),
-                )
-                .width(Length::Fill)
-                .padding(10)
-                .height(Length::FillPortion(1)),
-            );
+        Row::new()
+            .push(left_panel)
+            .push(right_panel)
+            .into()
+    }
 
-        Container::new(content)
+    /// Render the Macros page
+    fn render_macros_page(&self) -> Element<'_, Message> {
+        let profile_name = self.selected_profile_index
+            .and_then(|i| self.profiles.get(i))
+            .map(|p| p.name.clone())
+            .unwrap_or_else(|| "No profile selected".to_string());
+
+        let header = Column::new()
+            .spacing(10)
+            .push(Text::new("🎮 Gaming Macros").size(24))
+            .push(Text::new(format!("Profile: {}", profile_name)).size(14))
+            .push(Space::new(Length::Fill, Length::Fixed(10.0)));
+
+        let macro_editor = self.macro_editor_state.view()
+            .map(Message::MacroMessage);
+
+        let save_button = Button::new(Text::new("💾 Save Macros"))
+            .on_press(Message::SaveMacros)
+            .padding(12);
+
+        let content = Column::new()
+            .spacing(15)
+            .padding(20)
+            .push(header)
+            .push(macro_editor)
+            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
+            .push(save_button);
+
+        Container::new(Scrollable::new(content))
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
     }
-}
 
-impl GameOptimizer {
     fn render_process_selector(&self) -> Element<'_, Message> {
         let filter_lower = self.process_filter.to_lowercase();
 

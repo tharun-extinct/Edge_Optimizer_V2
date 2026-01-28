@@ -9,9 +9,13 @@ use std::time::Duration;
 #[cfg(windows)]
 use windows::Win32::{Foundation::*, Storage::FileSystem::*, System::Pipes::*};
 
-/// Named pipe path for IPC
+/// Named pipe path for IPC (Settings <-> Runner)
 #[allow(dead_code)]
 pub const PIPE_NAME: &str = r"\\.\pipe\EdgeOptimizerIPC";
+
+/// Named pipe path for Macro IPC (Settings <-> Macro)
+#[allow(dead_code)]
+pub const MACRO_PIPE_NAME: &str = r"\\.\pipe\EdgeOptimizerMacroIPC";
 
 /// Messages from Settings to Runner
 #[derive(Debug, Clone, Serialize, Deserialize)]
