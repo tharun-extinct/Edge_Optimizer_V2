@@ -15,7 +15,7 @@ description: High-performance RUST-based gaming optimization application
 
 **This is how you should always act**:
 - Always Plan first before writing any code. 
-    - Break down the problem into smaller parts (Create Todo list)
+    - Break down the problem into smaller parts (Create Todo list and add 'Build and Test' as the final step)
     - Focus on performance and low latency optimizations
     - Ask when anything's unclear (might be tech stack or feature related but never assume)
     - Don't implement any feature, until it's explicitly mentioned

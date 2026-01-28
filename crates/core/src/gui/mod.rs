@@ -795,38 +795,64 @@ impl Application for GameOptimizer {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        // Navigation sidebar (leftmost)
-        let nav_sidebar = Column::new()
+        // LEFT SIDEBAR: Profiles + Macros section
+        let mut sidebar = Column::new()
             .spacing(5)
             .padding(10)
-            .width(Length::Fixed(120.0))
-            .push(Text::new("📌 Navigation").size(16))
-            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
+            .width(Length::Fixed(200.0))
+            .push(Text::new("📋 Profiles").size(18));
+
+        // Profile list
+        for (i, profile) in self.profiles.iter().enumerate() {
+            let is_selected = self.selected_profile_index == Some(i) && self.current_page == Page::Profiles;
+            let is_active = self.active_profile_name.as_ref() == Some(&profile.name);
+
+            let label = if is_active {
+                format!("🟢 {}", profile.name)
+            } else if is_selected {
+                format!("▶ {}", profile.name)
+            } else {
+                profile.name.clone()
+            };
+
+            sidebar = sidebar.push(
+                Button::new(Text::new(label).size(13))
+                    .on_press(Message::ProfileSelected(i))
+                    .width(Length::Fill)
+                    .padding(6),
+            );
+        }
+
+        sidebar = sidebar
+            .push(Space::new(Length::Fill, Length::Fixed(5.0)))
+            .push(
+                Button::new(Text::new("+ New Profile").size(12))
+                    .on_press(Message::NewProfile)
+                    .width(Length::Fill)
+                    .padding(8),
+            );
+
+        // Macros section in sidebar
+        sidebar = sidebar
+            .push(Space::new(Length::Fill, Length::Fixed(20.0)))
+            .push(Text::new("🎮 Macros").size(18))
+            .push(Space::new(Length::Fill, Length::Fixed(5.0)))
             .push(
                 Button::new(
-                    Text::new(if self.current_page == Page::Profiles { "▶ Profiles" } else { "  Profiles" })
-                        .size(14)
-                )
-                .on_press(Message::NavigateTo(Page::Profiles))
-                .width(Length::Fill)
-                .padding(10),
-            )
-            .push(
-                Button::new(
-                    Text::new(if self.current_page == Page::Macros { "▶ Macros" } else { "  Macros" })
-                        .size(14)
+                    Text::new(if self.current_page == Page::Macros { "▶ Macro Editor" } else { "  Macro Editor" })
+                        .size(13)
                 )
                 .on_press(Message::NavigateTo(Page::Macros))
                 .width(Length::Fill)
-                .padding(10),
+                .padding(6),
             );
 
-        let nav_panel = Container::new(nav_sidebar)
+        let left_panel = Container::new(Scrollable::new(sidebar))
             .height(Length::Fill);
 
-        // Main content based on current page
+        // MAIN CONTENT based on current page
         let main_content: Element<'_, Message> = match self.current_page {
-            Page::Profiles => self.render_profiles_page(),
+            Page::Profiles => self.render_profile_editor(),
             Page::Macros => self.render_macros_page(),
         };
 
@@ -849,7 +875,7 @@ impl Application for GameOptimizer {
         let content = Column::new()
             .push(
                 Row::new()
-                    .push(nav_panel)
+                    .push(left_panel)
                     .push(main_content)
                     .height(Length::Fill),
             )
@@ -863,50 +889,9 @@ impl Application for GameOptimizer {
 }
 
 impl GameOptimizer {
-    /// Render the Profiles page
-    fn render_profiles_page(&self) -> Element<'_, Message> {
-        // Left panel - Profile list
-        let mut profile_list = Column::new()
-            .spacing(5)
-            .padding(10)
-            .push(Text::new("📋 Profiles").size(20))
-            .push(Space::new(Length::Fill, Length::Fixed(10.0)));
-
-        for (i, profile) in self.profiles.iter().enumerate() {
-            let is_selected = self.selected_profile_index == Some(i);
-            let is_active = self.active_profile_name.as_ref() == Some(&profile.name);
-
-            let label = if is_active {
-                format!("🟢 {}", profile.name)
-            } else if is_selected {
-                format!("▶ {}", profile.name)
-            } else {
-                profile.name.clone()
-            };
-
-            profile_list = profile_list.push(
-                Button::new(Text::new(label))
-                    .on_press(Message::ProfileSelected(i))
-                    .width(Length::Fill)
-                    .padding(8),
-            );
-        }
-
-        profile_list = profile_list
-            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
-            .push(
-                Button::new(Text::new("+ New Profile"))
-                    .on_press(Message::NewProfile)
-                    .width(Length::Fill)
-                    .padding(10),
-            );
-
-        let left_panel = Container::new(Scrollable::new(profile_list))
-            .width(Length::Fixed(200.0))
-            .height(Length::Fill)
-            .padding(10);
-
-        // Right panel - Edit form
+    /// Render the Profile Editor (main content area for profiles page)
+    fn render_profile_editor(&self) -> Element<'_, Message> {
+        // Profile Edit form
         let edit_section = Column::new()
             .spacing(15)
             .padding(20)
@@ -1123,13 +1108,10 @@ impl GameOptimizer {
                     )
             );
 
-        let right_panel = Container::new(Scrollable::new(edit_section))
+        Container::new(Scrollable::new(edit_section))
             .width(Length::Fill)
-            .height(Length::Fill);
-
-        Row::new()
-            .push(left_panel)
-            .push(right_panel)
+            .height(Length::Fill)
+            .padding(10)
             .into()
     }
 

@@ -10,7 +10,7 @@ use crate::macro_config::{CycleMode, MacroAction, MacroDefinition, MacroShortcut
 use iced::{
     widget::{
         Button, Checkbox, Column, Container, Radio, Row, Scrollable, Space, Text,
-        TextInput,
+        TextInput, Rule,
     },
     Alignment, Element, Length,
 };
@@ -222,6 +222,14 @@ impl MacroEditorState {
             }
 
             MacroMessage::StartRecording => {
+                // Auto-create a new macro if none selected
+                if self.selected_macro.is_none() {
+                    let name = format!("Macro {}", self.macros.len() + 1);
+                    let new_macro = MacroDefinition::new(name.clone());
+                    self.macros.push(new_macro);
+                    self.selected_macro = Some(self.macros.len() - 1);
+                    self.edit_name = name;
+                }
                 self.is_recording = true;
             }
 
@@ -443,26 +451,28 @@ impl MacroEditorState {
         let keys_list = self.render_keys_list();
         let settings_panel = self.render_settings_panel();
 
-        // Main layout: three columns
+        // Main layout: three columns with visual separation
         let content = Row::new()
-            .spacing(15)
+            .spacing(10)
             .push(
                 Container::new(macro_list)
                     .width(Length::Fixed(220.0))
-                    .height(Length::Fill)
-                    .padding(10),
+                    .height(Length::Fixed(450.0))
+                    .padding(12),
             )
+            .push(Rule::vertical(2))
             .push(
                 Container::new(keys_list)
                     .width(Length::Fixed(280.0))
-                    .height(Length::Fill)
-                    .padding(10),
+                    .height(Length::Fixed(450.0))
+                    .padding(12),
             )
+            .push(Rule::vertical(2))
             .push(
                 Container::new(settings_panel)
                     .width(Length::Fill)
-                    .height(Length::Fill)
-                    .padding(10),
+                    .height(Length::Fixed(450.0))
+                    .padding(12),
             );
 
         Container::new(content)
@@ -473,36 +483,52 @@ impl MacroEditorState {
 
     /// Render the macro list container
     fn render_macro_list(&self) -> Element<'_, MacroMessage> {
-        let mut list = Column::new()
-            .spacing(5)
-            .push(Text::new("📋 Macro List").size(18))
-            .push(Space::new(Length::Fill, Length::Fixed(10.0)));
+        let header = Row::new()
+            .spacing(10)
+            .align_items(Alignment::Center)
+            .push(Text::new("📋 Macro List").size(16))
+            .push(Space::new(Length::Fill, Length::Shrink))
+            .push(
+                Button::new(Text::new("+").size(14))
+                    .on_press(MacroMessage::NewMacro)
+                    .padding(5),
+            );
 
-        // Macro items
-        for (i, macro_def) in self.macros.iter().enumerate() {
-            let _is_selected = self.selected_macro == Some(i);
-            let icon = if macro_def.enabled { "✓" } else { "○" };
-            let label = format!("{} {}", icon, macro_def.name);
+        // Macro items in scrollable area
+        let mut macro_items = Column::new().spacing(3);
 
-            let button = Button::new(Text::new(label).size(14))
-                .on_press(MacroMessage::SelectMacro(i))
-                .width(Length::Fill)
-                .padding(8);
+        if self.macros.is_empty() {
+            macro_items = macro_items.push(
+                Text::new("No macros yet.\nClick + or Record to create.").size(12)
+            );
+        } else {
+            for (i, macro_def) in self.macros.iter().enumerate() {
+                let is_selected = self.selected_macro == Some(i);
+                let icon = if macro_def.enabled { "✓" } else { "○" };
+                let prefix = if is_selected { "▶ " } else { "  " };
+                let label = format!("{}{} {}", prefix, icon, macro_def.name);
 
-            list = list.push(button);
+                let button = Button::new(Text::new(label).size(13))
+                    .on_press(MacroMessage::SelectMacro(i))
+                    .width(Length::Fill)
+                    .padding(6);
+
+                macro_items = macro_items.push(button);
+            }
         }
 
-        // Spacer
-        list = list.push(Space::new(Length::Fill, Length::Fill));
+        let scrollable_list = Container::new(
+            Scrollable::new(macro_items).height(Length::Fixed(280.0))
+        );
 
-        // Record/Stop button
+        // Record/Stop button (always visible at bottom)
         let record_button = if self.is_recording {
             Button::new(
                 Row::new()
-                    .spacing(5)
+                    .spacing(8)
                     .align_items(Alignment::Center)
-                    .push(Text::new("⏹").size(16))
-                    .push(Text::new("Stop").size(14)),
+                    .push(Text::new("🔴").size(14))
+                    .push(Text::new("Stop Recording").size(13)),
             )
             .on_press(MacroMessage::StopRecording)
             .padding(10)
@@ -510,83 +536,179 @@ impl MacroEditorState {
         } else {
             Button::new(
                 Row::new()
-                    .spacing(5)
+                    .spacing(8)
                     .align_items(Alignment::Center)
-                    .push(Text::new("⏺").size(16))
-                    .push(Text::new("Record").size(14)),
+                    .push(Text::new("⏺").size(14))
+                    .push(Text::new("Record").size(13)),
             )
             .on_press(MacroMessage::StartRecording)
             .padding(10)
             .width(Length::Fill)
         };
 
-        list = list.push(record_button);
-
-        // New macro button
-        list = list.push(
-            Button::new(Text::new("+ New Macro").size(14))
-                .on_press(MacroMessage::NewMacro)
-                .padding(8)
-                .width(Length::Fill),
-        );
-
-        Scrollable::new(list).height(Length::Fill).into()
+        Column::new()
+            .spacing(8)
+            .push(header)
+            .push(Rule::horizontal(1))
+            .push(scrollable_list)
+            .push(Space::new(Length::Fill, Length::Fixed(5.0)))
+            .push(record_button)
+            .into()
     }
 
     /// Render the keys in macro container
     fn render_keys_list(&self) -> Element<'_, MacroMessage> {
-        let mut list = Column::new()
-            .spacing(5)
-            .push(Text::new("⌨️ Keys in Macro").size(18))
-            .push(Space::new(Length::Fill, Length::Fixed(10.0)));
+        let header = Row::new()
+            .spacing(10)
+            .align_items(Alignment::Center)
+            .push(Text::new("⌨️ Keys in Macro").size(16))
+            .push(Space::new(Length::Fill, Length::Shrink))
+            .push(
+                if self.selected_action.is_some() {
+                    Button::new(Text::new("🗑").size(12))
+                        .on_press(MacroMessage::DeleteAction)
+                        .padding(5)
+                } else {
+                    Button::new(Text::new("🗑").size(12)).padding(5)
+                }
+            );
 
-        // Show actions for selected macro
+        // Actions list
+        let mut action_items = Column::new().spacing(3);
+
         if let Some(macro_def) = self.current_macro() {
             if macro_def.actions.is_empty() {
-                list = list.push(Text::new("No actions recorded").size(12));
+                action_items = action_items.push(
+                    Text::new("No actions recorded.\nUse Record or Insert Event.").size(12)
+                );
             } else {
                 for (i, action) in macro_def.actions.iter().enumerate() {
-                    let _is_selected = self.selected_action == Some(i);
-                    let label = action.display_text();
+                    let is_selected = self.selected_action == Some(i);
+                    let prefix = if is_selected { "▶ " } else { "  " };
+                    let label = format!("{}{}", prefix, action.display_text());
 
-                    let button = Button::new(Text::new(label).size(12))
+                    let button = Button::new(Text::new(label).size(11))
                         .on_press(MacroMessage::SelectAction(i))
                         .width(Length::Fill)
-                        .padding(6);
+                        .padding(5);
 
-                    list = list.push(button);
+                    action_items = action_items.push(button);
                 }
             }
         } else {
-            list = list.push(Text::new("Select a macro to view actions").size(12));
+            action_items = action_items.push(
+                Text::new("Select a macro first").size(12)
+            );
         }
 
-        // Spacer
-        list = list.push(Space::new(Length::Fill, Length::Fill));
+        let scrollable_actions = Container::new(
+            Scrollable::new(action_items).height(Length::Fixed(180.0))
+        );
 
-        // Insert Event dropdown button
-        let insert_button = Button::new(
-            Row::new()
-                .spacing(10)
-                .push(Text::new("Insert Event").size(14))
-                .push(Space::new(Length::Fill, Length::Shrink))
-                .push(Text::new("▼").size(12)),
-        )
-        .on_press(MacroMessage::OpenInsertMenu)
-        .width(Length::Fill)
-        .padding(10);
+        // Insert Event section (always visible)
+        let insert_section = self.render_insert_section();
 
-        list = list.push(insert_button);
-
-        // Show dropdown menu if open
-        if matches!(self.insert_menu, InsertEventMenu::Open) {
-            list = list.push(self.render_insert_menu());
-        }
-
-        Scrollable::new(list).height(Length::Fill).into()
+        Column::new()
+            .spacing(8)
+            .push(header)
+            .push(Rule::horizontal(1))
+            .push(scrollable_actions)
+            .push(Space::new(Length::Fill, Length::Fixed(5.0)))
+            .push(insert_section)
+            .into()
     }
 
-    /// Render the insert event dropdown menu
+    /// Render the insert event section (always visible)
+    fn render_insert_section(&self) -> Element<'_, MacroMessage> {
+        let insert_header = Text::new("➕ Insert Event").size(14);
+
+        // Quick insert buttons
+        let mouse_row = Row::new()
+            .spacing(3)
+            .push(
+                Button::new(Text::new("L⬇").size(10))
+                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, true))
+                    .padding(4),
+            )
+            .push(
+                Button::new(Text::new("L⬆").size(10))
+                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, false))
+                    .padding(4),
+            )
+            .push(
+                Button::new(Text::new("R⬇").size(10))
+                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, true))
+                    .padding(4),
+            )
+            .push(
+                Button::new(Text::new("R⬆").size(10))
+                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, false))
+                    .padding(4),
+            )
+            .push(
+                Button::new(Text::new("M⬇").size(10))
+                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, true))
+                    .padding(4),
+            )
+            .push(
+                Button::new(Text::new("M⬆").size(10))
+                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, false))
+                    .padding(4),
+            );
+
+        // XY insert
+        let xy_row = Row::new()
+            .spacing(5)
+            .align_items(Alignment::Center)
+            .push(Text::new("XY:").size(10))
+            .push(
+                TextInput::new("X", &self.insert_x)
+                    .on_input(MacroMessage::InsertXYInputX)
+                    .width(Length::Fixed(40.0))
+                    .padding(3),
+            )
+            .push(
+                TextInput::new("Y", &self.insert_y)
+                    .on_input(MacroMessage::InsertXYInputY)
+                    .width(Length::Fixed(40.0))
+                    .padding(3),
+            )
+            .push(
+                Button::new(Text::new("Add").size(10))
+                    .on_press(MacroMessage::ConfirmInsertXY)
+                    .padding(4),
+            );
+
+        // Delay insert
+        let delay_row = Row::new()
+            .spacing(5)
+            .align_items(Alignment::Center)
+            .push(Text::new("Delay:").size(10))
+            .push(
+                TextInput::new("ms", &self.insert_delay_ms)
+                    .on_input(MacroMessage::InsertDelayInput)
+                    .width(Length::Fixed(50.0))
+                    .padding(3),
+            )
+            .push(Text::new("ms").size(10))
+            .push(
+                Button::new(Text::new("Add").size(10))
+                    .on_press(MacroMessage::ConfirmInsertDelay)
+                    .padding(4),
+            );
+
+        Column::new()
+            .spacing(5)
+            .push(insert_header)
+            .push(Text::new("Mouse:").size(10))
+            .push(mouse_row)
+            .push(xy_row)
+            .push(delay_row)
+            .into()
+    }
+
+    /// Render the insert event dropdown menu (legacy, kept for reference)
+    #[allow(dead_code)]
     fn render_insert_menu(&self) -> Element<'_, MacroMessage> {
         let menu = Column::new()
             .spacing(2)
@@ -843,21 +965,29 @@ impl MacroEditorState {
 
         // Delete button
         let delete_button = if current_macro.is_some() {
-            Button::new(Text::new("🗑️ Delete Macro").size(14))
+            Button::new(Text::new("🗑️ Delete Macro").size(13))
                 .on_press(MacroMessage::DeleteMacro)
-                .padding(10)
+                .padding(8)
+                .width(Length::Fill)
         } else {
-            Button::new(Text::new("🗑️ Delete Macro").size(14)).padding(10)
+            Button::new(Text::new("🗑️ Delete Macro").size(13))
+                .padding(8)
+                .width(Length::Fill)
         };
 
+        let content = Scrollable::new(
+            Column::new()
+                .spacing(15)
+                .push(name_section)
+                .push(Rule::horizontal(1))
+                .push(cycle_settings)
+                .push(Rule::horizontal(1))
+                .push(shortcut_settings)
+        ).height(Length::Fixed(350.0));
+
         Column::new()
-            .spacing(20)
-            .push(name_section)
-            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
-            .push(cycle_settings)
-            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
-            .push(shortcut_settings)
-            .push(Space::new(Length::Fill, Length::Fill))
+            .spacing(10)
+            .push(content)
             .push(delete_button)
             .into()
     }
