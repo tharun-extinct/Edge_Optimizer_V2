@@ -9,11 +9,16 @@
 use crate::macro_config::{CycleMode, MacroAction, MacroDefinition, MacroShortcut, MouseButton};
 use iced::{
     widget::{
-        Button, Checkbox, Column, Container, Radio, Row, Scrollable, Space, Text,
+        Button, Checkbox, Column, Container, Image, Radio, Row, Scrollable, Space, Text,
         TextInput, Rule, mouse_area,
     },
     Alignment, Element, Length,
 };
+
+// Icon paths for macro actions
+const ICON_KEY_PRESS: &str = "assets/key_press_16.png";
+const ICON_KEY_RELEASE: &str = "assets/key_release_16.png";
+const ICON_TIMER: &str = "assets/timer_16.png";
 
 /// State for context menu (right-click)
 #[derive(Debug, Clone, PartialEq)]
@@ -160,6 +165,96 @@ impl MacroEditorState {
     /// Get the currently selected macro mutably
     pub fn current_macro_mut(&mut self) -> Option<&mut MacroDefinition> {
         self.selected_macro.and_then(|i| self.macros.get_mut(i))
+    }
+
+    /// Build action row with icon and text
+    /// Format:
+    /// - Key Press: [icon] Key
+    /// - Holding timing (delay after press): [tab][timer_icon] Nms
+    /// - Key Release: [icon] Key
+    /// - Time to next key (delay after release): [tab][timer_icon] Nms
+    fn build_action_row<'a>(&self, action: &'a MacroAction, is_selected: bool) -> Element<'a, MacroMessage> {
+        let prefix = if is_selected { "▶ " } else { "   " };
+        
+        match action {
+            MacroAction::KeyPress { key, delay_ms } => {
+                let mut col = Column::new().spacing(1);
+                
+                // Key press row: [prefix][icon] Key
+                let press_row = Row::new()
+                    .spacing(4)
+                    .align_items(Alignment::Center)
+                    .push(Text::new(prefix).size(10))
+                    .push(Image::new(ICON_KEY_PRESS).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                    .push(Text::new(key.as_str()).size(10));
+                col = col.push(press_row);
+                
+                // If there's a delay, show holding time
+                if *delay_ms > 0 {
+                    let delay_row = Row::new()
+                        .spacing(4)
+                        .align_items(Alignment::Center)
+                        .push(Text::new("      ").size(10)) // Tab indent
+                        .push(Image::new(ICON_TIMER).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                        .push(Text::new(format!("{}ms", delay_ms)).size(10));
+                    col = col.push(delay_row);
+                }
+                
+                col.into()
+            }
+            MacroAction::KeyRelease { key, delay_ms } => {
+                let mut col = Column::new().spacing(1);
+                
+                // Key release row: [prefix][icon] Key
+                let release_row = Row::new()
+                    .spacing(4)
+                    .align_items(Alignment::Center)
+                    .push(Text::new(prefix).size(10))
+                    .push(Image::new(ICON_KEY_RELEASE).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                    .push(Text::new(key.as_str()).size(10));
+                col = col.push(release_row);
+                
+                // If there's a delay, show time to next key
+                if *delay_ms > 0 {
+                    let delay_row = Row::new()
+                        .spacing(4)
+                        .align_items(Alignment::Center)
+                        .push(Text::new("      ").size(10)) // Tab indent
+                        .push(Image::new(ICON_TIMER).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                        .push(Text::new(format!("{}ms", delay_ms)).size(10));
+                    col = col.push(delay_row);
+                }
+                
+                col.into()
+            }
+            MacroAction::MouseClick { button, press } => {
+                let icon = if *press { ICON_KEY_PRESS } else { ICON_KEY_RELEASE };
+                Row::new()
+                    .spacing(4)
+                    .align_items(Alignment::Center)
+                    .push(Text::new(prefix).size(10))
+                    .push(Image::new(icon).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                    .push(Text::new(format!("{}", button)).size(10))
+                    .into()
+            }
+            MacroAction::MouseMove { x, y } => {
+                Row::new()
+                    .spacing(4)
+                    .align_items(Alignment::Center)
+                    .push(Text::new(prefix).size(10))
+                    .push(Text::new(format!("⊕ ({}, {})", x, y)).size(10))
+                    .into()
+            }
+            MacroAction::Delay { ms } => {
+                Row::new()
+                    .spacing(4)
+                    .align_items(Alignment::Center)
+                    .push(Text::new("      ").size(10)) // Tab indent
+                    .push(Image::new(ICON_TIMER).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                    .push(Text::new(format!("{}ms", ms)).size(10))
+                    .into()
+            }
+        }
     }
 
     /// Handle a macro editor message
@@ -677,10 +772,11 @@ impl MacroEditorState {
                 // Show ALL actions - container is scrollable
                 for (i, action) in macro_def.actions.iter().enumerate() {
                     let is_selected = self.selected_action == Some(i);
-                    let prefix = if is_selected { "▶" } else { " " };
-                    let label = format!("{} {}", prefix, action.display_text());
+                    
+                    // Build action row with icon + text
+                    let action_row = self.build_action_row(action, is_selected);
 
-                    let select_button = Button::new(Text::new(label).size(10))
+                    let select_button = Button::new(action_row)
                         .on_press(MacroMessage::SelectAction(i))
                         .width(Length::Fill)
                         .padding(3);

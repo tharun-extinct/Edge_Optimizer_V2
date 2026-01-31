@@ -25,10 +25,15 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use std::cell::RefCell;
 
 #[cfg(target_os = "windows")]
+use std::collections::HashSet;
+
+#[cfg(target_os = "windows")]
 thread_local! {
     static HOOK_TX: RefCell<Option<Sender<MacroAction>>> = const { RefCell::new(None) };
     static HOOK_RECORDING: RefCell<bool> = const { RefCell::new(false) };
     static HOOK_LAST_TIME: RefCell<Instant> = RefCell::new(Instant::now());
+    /// Track which keys are currently held down to filter out key repeat events
+    static HOOK_KEYS_HELD: RefCell<HashSet<u32>> = RefCell::new(HashSet::new());
 }
 
 /// Converts Windows virtual key code to a string representation
@@ -171,15 +176,38 @@ unsafe extern "system" fn keyboard_hook_proc(
         if is_press || is_release {
             HOOK_RECORDING.with(|recording| {
                 if *recording.borrow() {
+                    // Check if this is a key repeat (key already held)
+                    let should_process = HOOK_KEYS_HELD.with(|keys_held| {
+                        let mut keys = keys_held.borrow_mut();
+                        
+                        if is_press {
+                            // If key is already in the held set, this is a repeat - ignore it
+                            if keys.contains(&vk_code) {
+                                return false; // Key repeat, don't process
+                            }
+                            // First press of this key - add to held set
+                            keys.insert(vk_code);
+                            true
+                        } else {
+                            // Key release - remove from held set
+                            keys.remove(&vk_code);
+                            true
+                        }
+                    });
+                    
+                    if !should_process {
+                        return; // Skip key repeat events
+                    }
+                    
                     HOOK_TX.with(|tx_cell| {
                         if let Some(ref tx) = *tx_cell.borrow() {
-                            // Calculate delay
+                            // Calculate delay since last event
                             HOOK_LAST_TIME.with(|last_time| {
                                 let now = Instant::now();
                                 let delay_ms = now.duration_since(*last_time.borrow()).as_millis() as u64;
                                 
-                                // Add delay if more than 10ms since last event
-                                if delay_ms > 10 {
+                                // Add delay if more than 5ms since last event
+                                if delay_ms > 5 {
                                     let _ = tx.send(MacroAction::Delay { ms: delay_ms });
                                 }
                                 
@@ -263,6 +291,10 @@ impl InputRecorder {
             HOOK_LAST_TIME.with(|cell| {
                 *cell.borrow_mut() = Instant::now();
             });
+            // Clear any previously held keys
+            HOOK_KEYS_HELD.with(|cell| {
+                cell.borrow_mut().clear();
+            });
             
             // Install the keyboard hook
             let hook = unsafe {
@@ -320,6 +352,9 @@ impl InputRecorder {
             });
             HOOK_TX.with(|cell| {
                 *cell.borrow_mut() = None;
+            });
+            HOOK_KEYS_HELD.with(|cell| {
+                cell.borrow_mut().clear();
             });
             
             info!("[InputRecorder] Listener thread ending");
