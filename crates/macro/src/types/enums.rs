@@ -1,0 +1,366 @@
+//! Enum Type Definitions
+//!
+//! Virtual key codes, mouse buttons, and flag types.
+
+use windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY;
+
+/// Virtual key codes for keyboard keys
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u16)]
+pub enum VirtualKey {
+    None = 0x00,
+    
+    // Mouse buttons (for completeness)
+    LButton = 0x01,
+    RButton = 0x02,
+    MButton = 0x04,
+    XButton1 = 0x05,
+    XButton2 = 0x06,
+    
+    // Control keys
+    Back = 0x08,
+    Tab = 0x09,
+    Return = 0x0D,
+    Shift = 0x10,
+    Control = 0x11,
+    Alt = 0x12,
+    Pause = 0x13,
+    CapsLock = 0x14,
+    Escape = 0x1B,
+    Space = 0x20,
+    
+    // Navigation
+    PageUp = 0x21,
+    PageDown = 0x22,
+    End = 0x23,
+    Home = 0x24,
+    Left = 0x25,
+    Up = 0x26,
+    Right = 0x27,
+    Down = 0x28,
+    Insert = 0x2D,
+    Delete = 0x2E,
+    
+    // Function keys
+    F1 = 0x70,
+    F2 = 0x71,
+    F3 = 0x72,
+    F4 = 0x73,
+    F5 = 0x74,
+    F6 = 0x75,
+    F7 = 0x76,
+    F8 = 0x77,
+    F9 = 0x78,
+    F10 = 0x79,
+    F11 = 0x7A,
+    F12 = 0x7B,
+    
+    // Letters
+    A = 0x41, B = 0x42, C = 0x43, D = 0x44, E = 0x45,
+    F = 0x46, G = 0x47, H = 0x48, I = 0x49, J = 0x4A,
+    K = 0x4B, L = 0x4C, M = 0x4D, N = 0x4E, O = 0x4F,
+    P = 0x50, Q = 0x51, R = 0x52, S = 0x53, T = 0x54,
+    U = 0x55, V = 0x56, W = 0x57, X = 0x58, Y = 0x59,
+    Z = 0x5A,
+    
+    // Windows keys
+    LWin = 0x5B,
+    RWin = 0x5C,
+    
+    // Numbers
+    Key0 = 0x30, Key1 = 0x31, Key2 = 0x32, Key3 = 0x33, Key4 = 0x34,
+    Key5 = 0x35, Key6 = 0x36, Key7 = 0x37, Key8 = 0x38, Key9 = 0x39,
+    
+    // Numpad
+    Numpad0 = 0x60, Numpad1 = 0x61, Numpad2 = 0x62, Numpad3 = 0x63,
+    Numpad4 = 0x64, Numpad5 = 0x65, Numpad6 = 0x66, Numpad7 = 0x67,
+    Numpad8 = 0x68, Numpad9 = 0x69,
+    Multiply = 0x6A,
+    Add = 0x6B,
+    Subtract = 0x6D,
+    Decimal = 0x6E,
+    Divide = 0x6F,
+    
+    // Lock keys
+    NumLock = 0x90,
+    ScrollLock = 0x91,
+    
+    // Shift variants
+    LShift = 0xA0,
+    RShift = 0xA1,
+    LControl = 0xA2,
+    RControl = 0xA3,
+    LAlt = 0xA4,
+    RAlt = 0xA5,
+    
+    // OEM keys
+    OemSemicolon = 0xBA,
+    OemPlus = 0xBB,
+    OemComma = 0xBC,
+    OemMinus = 0xBD,
+    OemPeriod = 0xBE,
+    OemSlash = 0xBF,
+    OemTilde = 0xC0,
+    OemOpenBracket = 0xDB,
+    OemBackslash = 0xDC,
+    OemCloseBracket = 0xDD,
+    OemQuote = 0xDE,
+    
+    // Catch-all for unknown keys
+    Unknown = 0xFF,
+}
+
+impl From<u32> for VirtualKey {
+    fn from(value: u32) -> Self {
+        Self::from(value as u16)
+    }
+}
+
+impl From<u16> for VirtualKey {
+    fn from(value: u16) -> Self {
+        match value {
+            0x00 => VirtualKey::None,
+            0x01 => VirtualKey::LButton,
+            0x02 => VirtualKey::RButton,
+            0x04 => VirtualKey::MButton,
+            0x05 => VirtualKey::XButton1,
+            0x06 => VirtualKey::XButton2,
+            0x08 => VirtualKey::Back,
+            0x09 => VirtualKey::Tab,
+            0x0D => VirtualKey::Return,
+            0x10 => VirtualKey::Shift,
+            0x11 => VirtualKey::Control,
+            0x12 => VirtualKey::Alt,
+            0x13 => VirtualKey::Pause,
+            0x14 => VirtualKey::CapsLock,
+            0x1B => VirtualKey::Escape,
+            0x20 => VirtualKey::Space,
+            0x21 => VirtualKey::PageUp,
+            0x22 => VirtualKey::PageDown,
+            0x23 => VirtualKey::End,
+            0x24 => VirtualKey::Home,
+            0x25 => VirtualKey::Left,
+            0x26 => VirtualKey::Up,
+            0x27 => VirtualKey::Right,
+            0x28 => VirtualKey::Down,
+            0x2D => VirtualKey::Insert,
+            0x2E => VirtualKey::Delete,
+            0x30 => VirtualKey::Key0,
+            0x31 => VirtualKey::Key1,
+            0x32 => VirtualKey::Key2,
+            0x33 => VirtualKey::Key3,
+            0x34 => VirtualKey::Key4,
+            0x35 => VirtualKey::Key5,
+            0x36 => VirtualKey::Key6,
+            0x37 => VirtualKey::Key7,
+            0x38 => VirtualKey::Key8,
+            0x39 => VirtualKey::Key9,
+            0x41 => VirtualKey::A,
+            0x42 => VirtualKey::B,
+            0x43 => VirtualKey::C,
+            0x44 => VirtualKey::D,
+            0x45 => VirtualKey::E,
+            0x46 => VirtualKey::F,
+            0x47 => VirtualKey::G,
+            0x48 => VirtualKey::H,
+            0x49 => VirtualKey::I,
+            0x4A => VirtualKey::J,
+            0x4B => VirtualKey::K,
+            0x4C => VirtualKey::L,
+            0x4D => VirtualKey::M,
+            0x4E => VirtualKey::N,
+            0x4F => VirtualKey::O,
+            0x50 => VirtualKey::P,
+            0x51 => VirtualKey::Q,
+            0x52 => VirtualKey::R,
+            0x53 => VirtualKey::S,
+            0x54 => VirtualKey::T,
+            0x55 => VirtualKey::U,
+            0x56 => VirtualKey::V,
+            0x57 => VirtualKey::W,
+            0x58 => VirtualKey::X,
+            0x59 => VirtualKey::Y,
+            0x5A => VirtualKey::Z,
+            0x5B => VirtualKey::LWin,
+            0x5C => VirtualKey::RWin,
+            0x60 => VirtualKey::Numpad0,
+            0x61 => VirtualKey::Numpad1,
+            0x62 => VirtualKey::Numpad2,
+            0x63 => VirtualKey::Numpad3,
+            0x64 => VirtualKey::Numpad4,
+            0x65 => VirtualKey::Numpad5,
+            0x66 => VirtualKey::Numpad6,
+            0x67 => VirtualKey::Numpad7,
+            0x68 => VirtualKey::Numpad8,
+            0x69 => VirtualKey::Numpad9,
+            0x6A => VirtualKey::Multiply,
+            0x6B => VirtualKey::Add,
+            0x6D => VirtualKey::Subtract,
+            0x6E => VirtualKey::Decimal,
+            0x6F => VirtualKey::Divide,
+            0x70 => VirtualKey::F1,
+            0x71 => VirtualKey::F2,
+            0x72 => VirtualKey::F3,
+            0x73 => VirtualKey::F4,
+            0x74 => VirtualKey::F5,
+            0x75 => VirtualKey::F6,
+            0x76 => VirtualKey::F7,
+            0x77 => VirtualKey::F8,
+            0x78 => VirtualKey::F9,
+            0x79 => VirtualKey::F10,
+            0x7A => VirtualKey::F11,
+            0x7B => VirtualKey::F12,
+            0x90 => VirtualKey::NumLock,
+            0x91 => VirtualKey::ScrollLock,
+            0xA0 => VirtualKey::LShift,
+            0xA1 => VirtualKey::RShift,
+            0xA2 => VirtualKey::LControl,
+            0xA3 => VirtualKey::RControl,
+            0xA4 => VirtualKey::LAlt,
+            0xA5 => VirtualKey::RAlt,
+            0xBA => VirtualKey::OemSemicolon,
+            0xBB => VirtualKey::OemPlus,
+            0xBC => VirtualKey::OemComma,
+            0xBD => VirtualKey::OemMinus,
+            0xBE => VirtualKey::OemPeriod,
+            0xBF => VirtualKey::OemSlash,
+            0xC0 => VirtualKey::OemTilde,
+            0xDB => VirtualKey::OemOpenBracket,
+            0xDC => VirtualKey::OemBackslash,
+            0xDD => VirtualKey::OemCloseBracket,
+            0xDE => VirtualKey::OemQuote,
+            _ => VirtualKey::Unknown,
+        }
+    }
+}
+
+impl From<VirtualKey> for VIRTUAL_KEY {
+    fn from(val: VirtualKey) -> Self {
+        VIRTUAL_KEY(val as u16)
+    }
+}
+
+impl VirtualKey {
+    /// Convert to display string
+    pub fn to_string(&self) -> String {
+        match self {
+            VirtualKey::None => "None".to_string(),
+            VirtualKey::Back => "Backspace".to_string(),
+            VirtualKey::Tab => "Tab".to_string(),
+            VirtualKey::Return => "Enter".to_string(),
+            VirtualKey::Shift | VirtualKey::LShift | VirtualKey::RShift => "Shift".to_string(),
+            VirtualKey::Control | VirtualKey::LControl | VirtualKey::RControl => "Ctrl".to_string(),
+            VirtualKey::Alt | VirtualKey::LAlt | VirtualKey::RAlt => "Alt".to_string(),
+            VirtualKey::Pause => "Pause".to_string(),
+            VirtualKey::CapsLock => "CapsLock".to_string(),
+            VirtualKey::Escape => "Esc".to_string(),
+            VirtualKey::Space => "Space".to_string(),
+            VirtualKey::PageUp => "PageUp".to_string(),
+            VirtualKey::PageDown => "PageDown".to_string(),
+            VirtualKey::End => "End".to_string(),
+            VirtualKey::Home => "Home".to_string(),
+            VirtualKey::Left => "Left".to_string(),
+            VirtualKey::Up => "Up".to_string(),
+            VirtualKey::Right => "Right".to_string(),
+            VirtualKey::Down => "Down".to_string(),
+            VirtualKey::Insert => "Insert".to_string(),
+            VirtualKey::Delete => "Delete".to_string(),
+            VirtualKey::LWin | VirtualKey::RWin => "Win".to_string(),
+            VirtualKey::Key0 => "0".to_string(),
+            VirtualKey::Key1 => "1".to_string(),
+            VirtualKey::Key2 => "2".to_string(),
+            VirtualKey::Key3 => "3".to_string(),
+            VirtualKey::Key4 => "4".to_string(),
+            VirtualKey::Key5 => "5".to_string(),
+            VirtualKey::Key6 => "6".to_string(),
+            VirtualKey::Key7 => "7".to_string(),
+            VirtualKey::Key8 => "8".to_string(),
+            VirtualKey::Key9 => "9".to_string(),
+            VirtualKey::A => "A".to_string(),
+            VirtualKey::B => "B".to_string(),
+            VirtualKey::C => "C".to_string(),
+            VirtualKey::D => "D".to_string(),
+            VirtualKey::E => "E".to_string(),
+            VirtualKey::F => "F".to_string(),
+            VirtualKey::G => "G".to_string(),
+            VirtualKey::H => "H".to_string(),
+            VirtualKey::I => "I".to_string(),
+            VirtualKey::J => "J".to_string(),
+            VirtualKey::K => "K".to_string(),
+            VirtualKey::L => "L".to_string(),
+            VirtualKey::M => "M".to_string(),
+            VirtualKey::N => "N".to_string(),
+            VirtualKey::O => "O".to_string(),
+            VirtualKey::P => "P".to_string(),
+            VirtualKey::Q => "Q".to_string(),
+            VirtualKey::R => "R".to_string(),
+            VirtualKey::S => "S".to_string(),
+            VirtualKey::T => "T".to_string(),
+            VirtualKey::U => "U".to_string(),
+            VirtualKey::V => "V".to_string(),
+            VirtualKey::W => "W".to_string(),
+            VirtualKey::X => "X".to_string(),
+            VirtualKey::Y => "Y".to_string(),
+            VirtualKey::Z => "Z".to_string(),
+            VirtualKey::Numpad0 => "Num0".to_string(),
+            VirtualKey::Numpad1 => "Num1".to_string(),
+            VirtualKey::Numpad2 => "Num2".to_string(),
+            VirtualKey::Numpad3 => "Num3".to_string(),
+            VirtualKey::Numpad4 => "Num4".to_string(),
+            VirtualKey::Numpad5 => "Num5".to_string(),
+            VirtualKey::Numpad6 => "Num6".to_string(),
+            VirtualKey::Numpad7 => "Num7".to_string(),
+            VirtualKey::Numpad8 => "Num8".to_string(),
+            VirtualKey::Numpad9 => "Num9".to_string(),
+            VirtualKey::Multiply => "Num*".to_string(),
+            VirtualKey::Add => "Num+".to_string(),
+            VirtualKey::Subtract => "Num-".to_string(),
+            VirtualKey::Decimal => "NumDel".to_string(),
+            VirtualKey::Divide => "Num/".to_string(),
+            VirtualKey::F1 => "F1".to_string(),
+            VirtualKey::F2 => "F2".to_string(),
+            VirtualKey::F3 => "F3".to_string(),
+            VirtualKey::F4 => "F4".to_string(),
+            VirtualKey::F5 => "F5".to_string(),
+            VirtualKey::F6 => "F6".to_string(),
+            VirtualKey::F7 => "F7".to_string(),
+            VirtualKey::F8 => "F8".to_string(),
+            VirtualKey::F9 => "F9".to_string(),
+            VirtualKey::F10 => "F10".to_string(),
+            VirtualKey::F11 => "F11".to_string(),
+            VirtualKey::F12 => "F12".to_string(),
+            VirtualKey::NumLock => "NumLock".to_string(),
+            VirtualKey::ScrollLock => "ScrollLock".to_string(),
+            VirtualKey::OemSemicolon => ";".to_string(),
+            VirtualKey::OemPlus => "=".to_string(),
+            VirtualKey::OemComma => ",".to_string(),
+            VirtualKey::OemMinus => "-".to_string(),
+            VirtualKey::OemPeriod => ".".to_string(),
+            VirtualKey::OemSlash => "/".to_string(),
+            VirtualKey::OemTilde => "`".to_string(),
+            VirtualKey::OemOpenBracket => "[".to_string(),
+            VirtualKey::OemBackslash => "\\".to_string(),
+            VirtualKey::OemCloseBracket => "]".to_string(),
+            VirtualKey::OemQuote => "'".to_string(),
+            _ => format!("Key{:02X}", *self as u16),
+        }
+    }
+}
+
+/// Mouse buttons
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseButton {
+    None,
+    Left,
+    Right,
+    Middle,
+    X1,
+    X2,
+}
+
+/// Key/button state flags
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyFlags {
+    Down,
+    Up,
+}

@@ -58,31 +58,27 @@ pub enum MacroAction {
 
 impl MacroAction {
     /// Get a display-friendly description of this action
+    /// Format:
+    /// - Key Press: [↓ Key]
+    /// - Key Release: [↑ Key]  
+    /// - Delay: [⏱ Nms]
     pub fn display_text(&self) -> String {
         match self {
-            MacroAction::KeyPress { key, delay_ms } => {
-                if *delay_ms > 0 {
-                    format!("Key: {} ⬇ ({}ms)", key, delay_ms)
-                } else {
-                    format!("Key: {} ⬇", key)
-                }
+            MacroAction::KeyPress { key, delay_ms: _ } => {
+                format!("↓ {}", key)
             }
-            MacroAction::KeyRelease { key, delay_ms } => {
-                if *delay_ms > 0 {
-                    format!("Key: {} ⬆ ({}ms)", key, delay_ms)
-                } else {
-                    format!("Key: {} ⬆", key)
-                }
+            MacroAction::KeyRelease { key, delay_ms: _ } => {
+                format!("↑ {}", key)
             }
             MacroAction::MouseClick { button, press } => {
-                let direction = if *press { "⬇" } else { "⬆" };
-                format!("{} Click {}", button, direction)
+                let direction = if *press { "↓" } else { "↑" };
+                format!("{} {}", direction, button)
             }
             MacroAction::MouseMove { x, y } => {
-                format!("Move: ({}, {})", x, y)
+                format!("⊕ ({}, {})", x, y)
             }
             MacroAction::Delay { ms } => {
-                format!("Delay: {}ms", ms)
+                format!("    ⏱ {}ms", ms)
             }
         }
     }

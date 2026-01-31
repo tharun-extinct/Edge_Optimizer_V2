@@ -80,51 +80,31 @@ UI elements can only be modified on the thread that created them. DispatcherQueu
 
 
 
-```Architecture
+## Macro Feature Implementation Details
+Gaming macro in the side bar of the Main Settings.UI, 
+    - Only the UI should be in the Main Settings
+    - And the EdgeOptimizer.Macro should listen for the shortcut (shortcut listener)
 
-┌──────────────────────────────────────┐
-│   Runner Process (PowerToys.exe)     │
-│                                      │
-│   ┌──────────────────────────────┐   │
-│   │  System Tray Icon            │   │  ← ONLY Runner has this
-│   │  Context Menu Handling       |   │
-|   |  Tray Icon Window Procedure  |   |  
-│   │                              |   │
-│   └──────────────────────────────┘   │
-│                                      │
-└──────────────────────────────────────┘
-                │
-                │ IPC (Named Pipes)
-                ↓
-┌──────────────────────────────────────┐
-│   Settings Process (Settings.exe)    │
-│                                      │
-│   ┌──────────────────────────────┐   │
-│   │  MainWindow                  │   │  ← NO tray icon here
-│   │  FlyoutWindow                │   │
-│   └──────────────────────────────┘   │
-│                                      │
-└──────────────────────────────────────┘```
+- The macro Execution and the Shortcut Listener Should be a separate process `EdgeOptimizer.Macro`
+- And the Macro Settings and the User Interaction should happens with in the Settings (Main UI)
 
+- Macros should be Profile-specific -> Tied to profiles (activate with profile) 
+- Macro persistence format ->  Extend existing config.rs 
 
-
-```flow 
-Runner                                Settings
-  │                                      │
-  │  1. User clicks tray icon            │
-  │                                      │
-  │  2. Runner sends IPC message ───────→│
-  │     (via Named Pipe)                 │
-  │                                      │
-  │                                      │  3. Settings receives on
-  │                                      │     background thread
-  │                                      │
-  │                                      │  4. Marshals to UI thread
-  │                                      │     via DispatcherQueue
-  │                                      │
-  │                                      │  5. Shows FlyoutWindow
-  │                                      ↓
-```
+---
+The Macro UI should like the following, 
+- Two containers `Macro List` and `Keys in macro`
+---
+The `Macro List` as the first container (from the left) with `Record` section (with a clickable icon - Only the icon should be clickable for recording event with milliseconds precision) on the bottom of the `Macro List` container.
+- For 'Record'[color: green] and 'Stop' [color: red] with respective icons
+---
+The `Keys in macro` as the second container (next to the `Macro List`) with drop down section on the bottom called `Insert Event` with drop down icon on the right corner of that section (Drop down should be down right-side of the `Keys in macro`). 
+---
+`Keys in macro` containers drop down should have the following options in it, 
+- Insert previous (dropdown options -> [Left ⬆, Left ⬇, Right ⬆, Right ⬇, Middle ⬆, Middle ⬇]),
+- Insert after (dropdown options -> [Left ⬆, Left ⬇, Right ⬆, Right ⬇, Middle ⬆, Middle ⬇]), 
+- Insert XY (Gamer / User should enter X & Y position of the mouse ),
+- Insert Delay (Should always be in milliseconds)
 ---
 
 **For Refactoring code:**

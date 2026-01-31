@@ -39,12 +39,16 @@ thiserror = "1.0"
 
 # Threading & IPC
 crossbeam = "0.8"
+crossbeam-channel = "0.5"
 once_cell = "1.19"
 bincode = "1.3"
 
 # Logging
 tracing = "0.1"
 tracing-subscriber = "0.3"
+
+# Input recording/simulation
+rdev = "0.5"
 
 # Windows-specific
 winresource = "0.1"
@@ -65,6 +69,7 @@ features = [
     "Win32_UI_HiDpi",
     "Win32_UI_Shell",
     "Win32_UI_Controls",
+    "Win32_UI_Input_KeyboardAndMouse",
 ]
 
 [workspace.dependencies.winapi]

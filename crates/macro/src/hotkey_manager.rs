@@ -158,7 +158,7 @@ pub fn run_hotkey_loop(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
         // Check if we need to update hotkey registrations
         // (This would be signaled by IPC handler updating the state)
         let needs_update = {
-            let state_guard = state.lock().unwrap();
+            let _state_guard = state.lock().unwrap();
             // Check if config changed - simple version: re-register periodically
             // In production, use a flag or version number
             false // Placeholder - implement proper change detection

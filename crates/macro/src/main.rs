@@ -16,6 +16,9 @@
 mod executor;
 mod hotkey_manager;
 mod ipc_handler;
+mod types;
+mod input_hooks;
+mod input_sender;
 
 use anyhow::Result;
 use edge_optimizer_core::macro_config::MacroConfig;

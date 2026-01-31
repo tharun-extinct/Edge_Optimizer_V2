@@ -106,6 +106,9 @@ pub enum Message {
     FlyoutProfileSelected(String),
     #[allow(dead_code)]
     FlyoutDeactivate,
+    
+    // Recording tick for polling recorded actions
+    RecordingTick,
 }
 
 pub struct GameOptimizer {
@@ -117,6 +120,9 @@ pub struct GameOptimizer {
 
     // Macro editor state
     macro_editor_state: macro_editor::MacroEditorState,
+    
+    // Input recorder for macro recording
+    input_recorder: crate::input_recorder::InputRecorder,
 
     // Current editing state
     edit_name: String,
@@ -520,6 +526,7 @@ impl Application for GameOptimizer {
             profiles: Vec::new(),
             selected_profile_index: None,
             macro_editor_state: macro_editor::MacroEditorState::default(),
+            input_recorder: crate::input_recorder::InputRecorder::new(),
             edit_name: String::new(),
             edit_x_offset: "0".to_string(),
             edit_y_offset: "0".to_string(),
@@ -563,10 +570,24 @@ impl Application for GameOptimizer {
         // Poll for IPC messages from Runner
         struct IpcPoller;
 
-        iced::subscription::unfold(std::any::TypeId::of::<IpcPoller>(), (), |_| async move {
+        let ipc_sub = iced::subscription::unfold(std::any::TypeId::of::<IpcPoller>(), (), |_| async move {
             std::thread::sleep(Duration::from_millis(50)); // 50ms for responsive IPC
             (Message::IpcTick, ())
-        })
+        });
+
+        // Poll for recorded actions when recording
+        struct RecordingPoller;
+        
+        let recording_sub = if self.macro_editor_state.is_recording {
+            iced::subscription::unfold(std::any::TypeId::of::<RecordingPoller>(), (), |_| async move {
+                std::thread::sleep(Duration::from_millis(100)); // 100ms for recording
+                (Message::RecordingTick, ())
+            })
+        } else {
+            Subscription::none()
+        };
+
+        Subscription::batch([ipc_sub, recording_sub])
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -588,7 +609,38 @@ impl Application for GameOptimizer {
             }
 
             Message::MacroMessage(macro_msg) => {
-                self.macro_editor_state.update(macro_msg);
+                // Handle start/stop recording specially
+                match &macro_msg {
+                    macro_editor::MacroMessage::StartRecording => {
+                        self.macro_editor_state.update(macro_msg);
+                        self.input_recorder.start_recording();
+                        self.status_message = "🔴 Recording... Press keys/mouse to capture".to_string();
+                    }
+                    macro_editor::MacroMessage::StopRecording => {
+                        let recorded_actions = self.input_recorder.stop_recording();
+                        // Add recorded actions to current macro
+                        if let Some(m) = self.macro_editor_state.current_macro_mut() {
+                            m.actions.extend(recorded_actions);
+                        }
+                        self.macro_editor_state.update(macro_msg);
+                        self.status_message = "⏹ Recording stopped".to_string();
+                    }
+                    _ => {
+                        self.macro_editor_state.update(macro_msg);
+                    }
+                }
+            }
+            
+            Message::RecordingTick => {
+                // Poll for new recorded actions
+                if self.macro_editor_state.is_recording {
+                    let actions = self.input_recorder.poll_actions();
+                    for action in actions {
+                        self.macro_editor_state.update(
+                            macro_editor::MacroMessage::RecordedAction(action)
+                        );
+                    }
+                }
             }
 
             Message::SaveMacros => {
@@ -1143,7 +1195,7 @@ impl GameOptimizer {
             .push(Space::new(Length::Fill, Length::Fixed(10.0)))
             .push(save_button);
 
-        Container::new(Scrollable::new(content))
+        Container::new(content)
             .width(Length::Fill)
             .height(Length::Fill)
             .into()

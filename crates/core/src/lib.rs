@@ -13,6 +13,7 @@ pub mod crosshair_overlay;
 pub mod flyout;
 pub mod gui;
 pub mod image_picker;
+pub mod input_recorder;
 pub mod ipc;
 pub mod macro_config;
 pub mod process;
@@ -22,6 +23,7 @@ pub mod tray_icon; // New minimal tray manager for Runner
 
 /// Re-export startup flags from settings for GUI
 pub use crate::gui::GuiFlags;
+pub use crate::input_recorder::InputRecorder;
 
 /// Startup flags parsed from command line (used by Settings)
 #[derive(Debug, Default, Clone)]
