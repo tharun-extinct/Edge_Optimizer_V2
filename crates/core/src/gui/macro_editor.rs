@@ -518,7 +518,7 @@ impl MacroEditorState {
         }
 
         let scrollable_list = Container::new(
-            Scrollable::new(macro_items).height(Length::Fixed(280.0))
+            Scrollable::new(macro_items).height(Length::Fixed(340.0))
         );
 
         // Record/Stop button (always visible at bottom)
@@ -528,7 +528,7 @@ impl MacroEditorState {
                     .spacing(8)
                     .align_items(Alignment::Center)
                     .push(Text::new("🔴").size(14))
-                    .push(Text::new("Stop Recording").size(13)),
+                    .push(Text::new("Stop").size(13)),
             )
             .on_press(MacroMessage::StopRecording)
             .padding(10)
@@ -538,7 +538,7 @@ impl MacroEditorState {
                 Row::new()
                     .spacing(8)
                     .align_items(Alignment::Center)
-                    .push(Text::new("⏺").size(14))
+                    .push(Text::new("🟢").size(14))
                     .push(Text::new("Record").size(13)),
             )
             .on_press(MacroMessage::StartRecording)
@@ -551,7 +551,6 @@ impl MacroEditorState {
             .push(header)
             .push(Rule::horizontal(1))
             .push(scrollable_list)
-            .push(Space::new(Length::Fill, Length::Fixed(5.0)))
             .push(record_button)
             .into()
     }
@@ -602,109 +601,84 @@ impl MacroEditorState {
         }
 
         let scrollable_actions = Container::new(
-            Scrollable::new(action_items).height(Length::Fixed(180.0))
+            Scrollable::new(action_items).height(Length::Fixed(340.0))
         );
 
-        // Insert Event section (always visible)
-        let insert_section = self.render_insert_section();
+        // Insert Event dropdown button (aligned with Record button)
+        let insert_button = Button::new(
+            Row::new()
+                .spacing(8)
+                .align_items(Alignment::Center)
+                .push(Text::new("Insert Event").size(13))
+                .push(Space::new(Length::Fill, Length::Shrink))
+                .push(Text::new(if self.insert_menu == InsertEventMenu::Open { "▲" } else { "▼" }).size(12)),
+        )
+        .on_press(if self.insert_menu == InsertEventMenu::Open {
+            MacroMessage::CloseInsertMenu
+        } else {
+            MacroMessage::OpenInsertMenu
+        })
+        .padding(10)
+        .width(Length::Fill);
 
-        Column::new()
+        let mut content = Column::new()
             .spacing(8)
             .push(header)
             .push(Rule::horizontal(1))
             .push(scrollable_actions)
-            .push(Space::new(Length::Fill, Length::Fixed(5.0)))
-            .push(insert_section)
-            .into()
+            .push(insert_button);
+
+        // Show dropdown menu if open
+        if self.insert_menu == InsertEventMenu::Open {
+            content = content.push(self.render_insert_dropdown());
+        }
+
+        content.into()
     }
 
-    /// Render the insert event section (always visible)
-    fn render_insert_section(&self) -> Element<'_, MacroMessage> {
-        let insert_header = Text::new("➕ Insert Event").size(14);
-
-        // Quick insert buttons
-        let mouse_row = Row::new()
+    /// Render the insert event dropdown content
+    fn render_insert_dropdown(&self) -> Element<'_, MacroMessage> {
+        let mouse_section = Column::new()
             .spacing(3)
+            .push(Text::new("Mouse Clicks:").size(11))
             .push(
-                Button::new(Text::new("L⬇").size(10))
-                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, true))
-                    .padding(4),
-            )
-            .push(
-                Button::new(Text::new("L⬆").size(10))
-                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, false))
-                    .padding(4),
-            )
-            .push(
-                Button::new(Text::new("R⬇").size(10))
-                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, true))
-                    .padding(4),
-            )
-            .push(
-                Button::new(Text::new("R⬆").size(10))
-                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, false))
-                    .padding(4),
-            )
-            .push(
-                Button::new(Text::new("M⬇").size(10))
-                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, true))
-                    .padding(4),
-            )
-            .push(
-                Button::new(Text::new("M⬆").size(10))
-                    .on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, false))
-                    .padding(4),
+                Row::new()
+                    .spacing(3)
+                    .push(Button::new(Text::new("L⬇").size(10)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, true)).padding(4))
+                    .push(Button::new(Text::new("L⬆").size(10)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, false)).padding(4))
+                    .push(Button::new(Text::new("R⬇").size(10)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, true)).padding(4))
+                    .push(Button::new(Text::new("R⬆").size(10)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, false)).padding(4))
+                    .push(Button::new(Text::new("M⬇").size(10)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, true)).padding(4))
+                    .push(Button::new(Text::new("M⬆").size(10)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, false)).padding(4)),
             );
 
-        // XY insert
-        let xy_row = Row::new()
+        let xy_section = Row::new()
             .spacing(5)
             .align_items(Alignment::Center)
-            .push(Text::new("XY:").size(10))
-            .push(
-                TextInput::new("X", &self.insert_x)
-                    .on_input(MacroMessage::InsertXYInputX)
-                    .width(Length::Fixed(40.0))
-                    .padding(3),
-            )
-            .push(
-                TextInput::new("Y", &self.insert_y)
-                    .on_input(MacroMessage::InsertXYInputY)
-                    .width(Length::Fixed(40.0))
-                    .padding(3),
-            )
-            .push(
-                Button::new(Text::new("Add").size(10))
-                    .on_press(MacroMessage::ConfirmInsertXY)
-                    .padding(4),
-            );
+            .push(Text::new("Move XY:").size(10))
+            .push(TextInput::new("X", &self.insert_x).on_input(MacroMessage::InsertXYInputX).width(Length::Fixed(40.0)).padding(3))
+            .push(TextInput::new("Y", &self.insert_y).on_input(MacroMessage::InsertXYInputY).width(Length::Fixed(40.0)).padding(3))
+            .push(Button::new(Text::new("Add").size(10)).on_press(MacroMessage::ConfirmInsertXY).padding(4));
 
-        // Delay insert
-        let delay_row = Row::new()
+        let delay_section = Row::new()
             .spacing(5)
             .align_items(Alignment::Center)
             .push(Text::new("Delay:").size(10))
-            .push(
-                TextInput::new("ms", &self.insert_delay_ms)
-                    .on_input(MacroMessage::InsertDelayInput)
-                    .width(Length::Fixed(50.0))
-                    .padding(3),
-            )
+            .push(TextInput::new("ms", &self.insert_delay_ms).on_input(MacroMessage::InsertDelayInput).width(Length::Fixed(50.0)).padding(3))
             .push(Text::new("ms").size(10))
-            .push(
-                Button::new(Text::new("Add").size(10))
-                    .on_press(MacroMessage::ConfirmInsertDelay)
-                    .padding(4),
-            );
+            .push(Button::new(Text::new("Add").size(10)).on_press(MacroMessage::ConfirmInsertDelay).padding(4));
 
-        Column::new()
-            .spacing(5)
-            .push(insert_header)
-            .push(Text::new("Mouse:").size(10))
-            .push(mouse_row)
-            .push(xy_row)
-            .push(delay_row)
-            .into()
+        Container::new(
+            Column::new()
+                .spacing(8)
+                .padding(8)
+                .push(mouse_section)
+                .push(Rule::horizontal(1))
+                .push(xy_section)
+                .push(delay_section)
+        )
+        .width(Length::Fill)
+        .into()
     }
 
     /// Render the insert event dropdown menu (legacy, kept for reference)
