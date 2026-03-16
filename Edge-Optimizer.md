@@ -369,3 +369,15 @@ The mouse events shouldn't be recorded, I want only the keyboard events to be re
 - The mouse events should Only be inserted from the 'Insert events' buttons from the 'keys in Macro' container
 ---
 Currently, it not at all listening the keyboard events
+
+
+
+-------------------
+
+
+
+Triggers on pull_request to main
+Uses windows-latest
+Installs stable Rust
+Caches Rust dependencies with Swatinem/rust-cache@v2
+Runs both cargo build --workspace --all-targets --verbose and cargo test --workspace --all-targets --verbose
