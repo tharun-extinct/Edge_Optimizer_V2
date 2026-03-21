@@ -1,0 +1,26 @@
+<Window x:Class="EdgeOptimizer.Settings.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edge Optimizer Settings" Height="600" Width="1000"
+        MinHeight="500" MinWidth="900">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Edge Optimizer (WPF Settings)" FontSize="22" FontWeight="SemiBold"/>
+
+        <StackPanel Grid.Row="1" Margin="0,16,0,0">
+            <TextBlock Text="This WPF shell now acts as an orchestration UI client." FontSize="14"/>
+            <TextBlock Margin="0,6,0,0" Text="Optimization and cleanup execution now run in Runner + EngineSvc, not in the UI process." TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <StatusBar Grid.Row="2" Margin="0,12,0,0">
+            <StatusBarItem>
+                <TextBlock Text="Status: Ready for IPC integration"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

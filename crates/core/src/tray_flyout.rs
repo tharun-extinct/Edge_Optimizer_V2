@@ -463,6 +463,9 @@ pub fn run_tray_flyout_thread(
                         println!("[TRAY] Received shutdown signal");
                         break;
                     }
+                    GuiToTray::Orchestration(_) => {
+                        // New orchestration protocol is handled by Runner in current architecture
+                    }
                 },
                 Err(TryRecvError::Empty) => {}
                 Err(TryRecvError::Disconnected) => {

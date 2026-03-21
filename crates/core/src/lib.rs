@@ -10,12 +10,14 @@
 pub mod common_apps;
 pub mod config;
 pub mod crosshair_overlay;
+pub mod engine_ipc;
 pub mod flyout;
 pub mod gui;
 pub mod image_picker;
 pub mod input_recorder;
 pub mod ipc;
 pub mod macro_config;
+pub mod orchestration;
 pub mod process;
 pub mod profile;
 pub mod tray_flyout; // Legacy, may be removed

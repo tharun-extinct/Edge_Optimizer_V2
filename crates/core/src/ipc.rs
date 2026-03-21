@@ -1,3 +1,4 @@
+use crate::orchestration::{Envelope, RunnerToSettingsEvent, SettingsToRunnerCommand};
 /// Inter-Process Communication between Settings and Runner processes
 /// Uses Windows Named Pipes for cross-process communication
 use crate::profile::Profile;
@@ -28,6 +29,8 @@ pub enum GuiToTray {
     OverlayVisibilityChanged(bool),
     /// Request tray to exit
     Shutdown,
+    /// Versioned orchestration command envelope
+    Orchestration(Envelope<SettingsToRunnerCommand>),
 }
 
 /// Messages from Runner to Settings
@@ -49,6 +52,8 @@ pub enum TrayToGui {
     BringMainToFront,
     /// User requested exit
     Exit,
+    /// Versioned orchestration event envelope
+    OrchestrationEvent(Envelope<RunnerToSettingsEvent>),
 }
 
 /// Named Pipe Server (Runner side)

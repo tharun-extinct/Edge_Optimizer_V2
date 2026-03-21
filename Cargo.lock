@@ -1140,6 +1140,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "edge_optimizer_engine_ctl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "edge_optimizer_core",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "edge_optimizer_engine_service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "edge_optimizer_core",
+ "tracing",
+ "tracing-subscriber",
+ "windows 0.52.0",
+ "winresource",
+]
+
+[[package]]
 name = "edge_optimizer_macro"
 version = "0.1.0"
 dependencies = [

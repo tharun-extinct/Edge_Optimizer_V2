@@ -5,6 +5,8 @@ members = [
     "crates/runner",
     "crates/crosshair",
     "crates/macro",
+    "crates/engine_service",
+    "crates/engine_ctl",
 ]
 resolver = "2"
 
@@ -14,7 +16,7 @@ edition = "2021"
 
 [workspace.dependencies]
 # GUI & Window Management
-iced = { version = "0.12", features = ["debug", "image"] }
+iced = { version = "0.12", features = ["image"] }
 tray-icon = "0.14"
 winit = "0.29"
 softbuffer = "0.4"
