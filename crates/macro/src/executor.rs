@@ -41,7 +41,10 @@ impl MacroExecutor {
             CycleMode::UntilKeyPressed(stop_key) => {
                 // For now, execute once - proper implementation would need
                 // a separate thread to monitor for the stop key
-                info!("UntilKeyPressed mode - executing once (stop key: {})", stop_key);
+                info!(
+                    "UntilKeyPressed mode - executing once (stop key: {})",
+                    stop_key
+                );
                 self.execute_actions(&macro_def.actions)?;
             }
         }
@@ -168,7 +171,10 @@ impl MacroExecutor {
     }
 
     /// Convert MouseButton enum to enigo Button
-    fn to_enigo_button(&self, button: &edge_optimizer_core::macro_config::MouseButton) -> enigo::Button {
+    fn to_enigo_button(
+        &self,
+        button: &edge_optimizer_core::macro_config::MouseButton,
+    ) -> enigo::Button {
         use edge_optimizer_core::macro_config::MouseButton;
         match button {
             MouseButton::Left => enigo::Button::Left,

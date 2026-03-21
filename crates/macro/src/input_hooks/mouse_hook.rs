@@ -9,9 +9,9 @@ use std::sync::OnceLock;
 use tracing::{debug, error};
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, MSLLHOOKSTRUCT,
-    WH_MOUSE_LL, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP,
-    WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_XBUTTONDOWN, WM_XBUTTONUP,
+    CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, MSLLHOOKSTRUCT, WH_MOUSE_LL,
+    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL,
+    WM_RBUTTONDOWN, WM_RBUTTONUP, WM_XBUTTONDOWN, WM_XBUTTONUP,
 };
 
 /// Global mouse hook handle
@@ -81,22 +81,42 @@ pub fn uninstall_mouse_hook() {
 }
 
 /// Mouse hook callback procedure
-unsafe extern "system" fn mouse_proc(
-    n_code: i32,
-    w_param: WPARAM,
-    l_param: LPARAM,
-) -> LRESULT {
+unsafe extern "system" fn mouse_proc(n_code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     if n_code >= 0 {
         let ms_struct = &*(l_param.0 as *const MSLLHOOKSTRUCT);
         let position = (ms_struct.pt.x, ms_struct.pt.y);
 
         let data = match w_param.0 as u32 {
-            WM_LBUTTONDOWN => Some(MouseData::new_click(MouseButton::Left, KeyFlags::Down, position)),
-            WM_LBUTTONUP => Some(MouseData::new_click(MouseButton::Left, KeyFlags::Up, position)),
-            WM_RBUTTONDOWN => Some(MouseData::new_click(MouseButton::Right, KeyFlags::Down, position)),
-            WM_RBUTTONUP => Some(MouseData::new_click(MouseButton::Right, KeyFlags::Up, position)),
-            WM_MBUTTONDOWN => Some(MouseData::new_click(MouseButton::Middle, KeyFlags::Down, position)),
-            WM_MBUTTONUP => Some(MouseData::new_click(MouseButton::Middle, KeyFlags::Up, position)),
+            WM_LBUTTONDOWN => Some(MouseData::new_click(
+                MouseButton::Left,
+                KeyFlags::Down,
+                position,
+            )),
+            WM_LBUTTONUP => Some(MouseData::new_click(
+                MouseButton::Left,
+                KeyFlags::Up,
+                position,
+            )),
+            WM_RBUTTONDOWN => Some(MouseData::new_click(
+                MouseButton::Right,
+                KeyFlags::Down,
+                position,
+            )),
+            WM_RBUTTONUP => Some(MouseData::new_click(
+                MouseButton::Right,
+                KeyFlags::Up,
+                position,
+            )),
+            WM_MBUTTONDOWN => Some(MouseData::new_click(
+                MouseButton::Middle,
+                KeyFlags::Down,
+                position,
+            )),
+            WM_MBUTTONUP => Some(MouseData::new_click(
+                MouseButton::Middle,
+                KeyFlags::Up,
+                position,
+            )),
             WM_XBUTTONDOWN => {
                 let button = get_x_button(ms_struct.mouseData);
                 Some(MouseData::new_click(button, KeyFlags::Down, position))
@@ -107,10 +127,7 @@ unsafe extern "system" fn mouse_proc(
             }
             WM_MOUSEMOVE => {
                 // Calculate relative movement
-                let last_pos = LAST_MOUSE_POS
-                    .get()
-                    .map(|p| *p.lock())
-                    .unwrap_or((0, 0));
+                let last_pos = LAST_MOUSE_POS.get().map(|p| *p.lock()).unwrap_or((0, 0));
                 let delta = (position.0 - last_pos.0, position.1 - last_pos.1);
 
                 // Update last position

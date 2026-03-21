@@ -9,14 +9,14 @@ use windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY;
 #[repr(u16)]
 pub enum VirtualKey {
     None = 0x00,
-    
+
     // Mouse buttons (for completeness)
     LButton = 0x01,
     RButton = 0x02,
     MButton = 0x04,
     XButton1 = 0x05,
     XButton2 = 0x06,
-    
+
     // Control keys
     Back = 0x08,
     Tab = 0x09,
@@ -28,7 +28,7 @@ pub enum VirtualKey {
     CapsLock = 0x14,
     Escape = 0x1B,
     Space = 0x20,
-    
+
     // Navigation
     PageUp = 0x21,
     PageDown = 0x22,
@@ -40,7 +40,7 @@ pub enum VirtualKey {
     Down = 0x28,
     Insert = 0x2D,
     Delete = 0x2E,
-    
+
     // Function keys
     F1 = 0x70,
     F2 = 0x71,
@@ -54,37 +54,72 @@ pub enum VirtualKey {
     F10 = 0x79,
     F11 = 0x7A,
     F12 = 0x7B,
-    
+
     // Letters
-    A = 0x41, B = 0x42, C = 0x43, D = 0x44, E = 0x45,
-    F = 0x46, G = 0x47, H = 0x48, I = 0x49, J = 0x4A,
-    K = 0x4B, L = 0x4C, M = 0x4D, N = 0x4E, O = 0x4F,
-    P = 0x50, Q = 0x51, R = 0x52, S = 0x53, T = 0x54,
-    U = 0x55, V = 0x56, W = 0x57, X = 0x58, Y = 0x59,
+    A = 0x41,
+    B = 0x42,
+    C = 0x43,
+    D = 0x44,
+    E = 0x45,
+    F = 0x46,
+    G = 0x47,
+    H = 0x48,
+    I = 0x49,
+    J = 0x4A,
+    K = 0x4B,
+    L = 0x4C,
+    M = 0x4D,
+    N = 0x4E,
+    O = 0x4F,
+    P = 0x50,
+    Q = 0x51,
+    R = 0x52,
+    S = 0x53,
+    T = 0x54,
+    U = 0x55,
+    V = 0x56,
+    W = 0x57,
+    X = 0x58,
+    Y = 0x59,
     Z = 0x5A,
-    
+
     // Windows keys
     LWin = 0x5B,
     RWin = 0x5C,
-    
+
     // Numbers
-    Key0 = 0x30, Key1 = 0x31, Key2 = 0x32, Key3 = 0x33, Key4 = 0x34,
-    Key5 = 0x35, Key6 = 0x36, Key7 = 0x37, Key8 = 0x38, Key9 = 0x39,
-    
+    Key0 = 0x30,
+    Key1 = 0x31,
+    Key2 = 0x32,
+    Key3 = 0x33,
+    Key4 = 0x34,
+    Key5 = 0x35,
+    Key6 = 0x36,
+    Key7 = 0x37,
+    Key8 = 0x38,
+    Key9 = 0x39,
+
     // Numpad
-    Numpad0 = 0x60, Numpad1 = 0x61, Numpad2 = 0x62, Numpad3 = 0x63,
-    Numpad4 = 0x64, Numpad5 = 0x65, Numpad6 = 0x66, Numpad7 = 0x67,
-    Numpad8 = 0x68, Numpad9 = 0x69,
+    Numpad0 = 0x60,
+    Numpad1 = 0x61,
+    Numpad2 = 0x62,
+    Numpad3 = 0x63,
+    Numpad4 = 0x64,
+    Numpad5 = 0x65,
+    Numpad6 = 0x66,
+    Numpad7 = 0x67,
+    Numpad8 = 0x68,
+    Numpad9 = 0x69,
     Multiply = 0x6A,
     Add = 0x6B,
     Subtract = 0x6D,
     Decimal = 0x6E,
     Divide = 0x6F,
-    
+
     // Lock keys
     NumLock = 0x90,
     ScrollLock = 0x91,
-    
+
     // Shift variants
     LShift = 0xA0,
     RShift = 0xA1,
@@ -92,7 +127,7 @@ pub enum VirtualKey {
     RControl = 0xA3,
     LAlt = 0xA4,
     RAlt = 0xA5,
-    
+
     // OEM keys
     OemSemicolon = 0xBA,
     OemPlus = 0xBB,
@@ -105,7 +140,7 @@ pub enum VirtualKey {
     OemBackslash = 0xDC,
     OemCloseBracket = 0xDD,
     OemQuote = 0xDE,
-    
+
     // Catch-all for unknown keys
     Unknown = 0xFF,
 }

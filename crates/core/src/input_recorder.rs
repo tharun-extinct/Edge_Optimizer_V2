@@ -5,20 +5,19 @@
 //! Runs in a background thread with its own Windows message pump.
 
 use crate::macro_config::MacroAction;
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, DispatchMessageW, SetWindowsHookExW, 
-    TranslateMessage, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, 
-    MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, DispatchMessageW, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx,
+    HHOOK, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 #[cfg(target_os = "windows")]
@@ -40,7 +39,7 @@ thread_local! {
 #[cfg(target_os = "windows")]
 fn vk_to_string(vk: u32) -> String {
     use windows::Win32::UI::Input::KeyboardAndMouse::*;
-    
+
     match VIRTUAL_KEY(vk as u16) {
         VK_BACK => "Backspace".to_string(),
         VK_TAB => "Tab".to_string(),
@@ -158,28 +157,24 @@ fn vk_to_string(vk: u32) -> String {
 
 /// Low-level keyboard hook callback
 #[cfg(target_os = "windows")]
-unsafe extern "system" fn keyboard_hook_proc(
-    code: i32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
+unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     use windows::Win32::UI::WindowsAndMessaging::HC_ACTION;
-    
+
     if code == HC_ACTION as i32 {
         let kb_struct = *(lparam.0 as *const KBDLLHOOKSTRUCT);
         let vk_code = kb_struct.vkCode;
-        
+
         // Determine if it's a key press or release
         let is_press = matches!(wparam.0 as u32, WM_KEYDOWN | WM_SYSKEYDOWN);
         let is_release = matches!(wparam.0 as u32, WM_KEYUP | WM_SYSKEYUP);
-        
+
         if is_press || is_release {
             HOOK_RECORDING.with(|recording| {
                 if *recording.borrow() {
                     // Check if this is a key repeat (key already held)
                     let should_process = HOOK_KEYS_HELD.with(|keys_held| {
                         let mut keys = keys_held.borrow_mut();
-                        
+
                         if is_press {
                             // If key is already in the held set, this is a repeat - ignore it
                             if keys.contains(&vk_code) {
@@ -194,36 +189,43 @@ unsafe extern "system" fn keyboard_hook_proc(
                             true
                         }
                     });
-                    
+
                     if !should_process {
                         return; // Skip key repeat events
                     }
-                    
+
                     HOOK_TX.with(|tx_cell| {
                         if let Some(ref tx) = *tx_cell.borrow() {
                             // Calculate delay since last event
                             HOOK_LAST_TIME.with(|last_time| {
                                 let now = Instant::now();
-                                let delay_ms = now.duration_since(*last_time.borrow()).as_millis() as u64;
-                                
+                                let delay_ms =
+                                    now.duration_since(*last_time.borrow()).as_millis() as u64;
+
                                 // Add delay if more than 5ms since last event
                                 if delay_ms > 5 {
                                     let _ = tx.send(MacroAction::Delay { ms: delay_ms });
                                 }
-                                
+
                                 *last_time.borrow_mut() = now;
                             });
-                            
+
                             let key_str = vk_to_string(vk_code);
-                            
+
                             let action = if is_press {
                                 debug!("[InputRecorder] KeyPress: {}", key_str);
-                                MacroAction::KeyPress { key: key_str, delay_ms: 0 }
+                                MacroAction::KeyPress {
+                                    key: key_str,
+                                    delay_ms: 0,
+                                }
                             } else {
                                 debug!("[InputRecorder] KeyRelease: {}", key_str);
-                                MacroAction::KeyRelease { key: key_str, delay_ms: 0 }
+                                MacroAction::KeyRelease {
+                                    key: key_str,
+                                    delay_ms: 0,
+                                }
                             };
-                            
+
                             if let Err(e) = tx.send(action) {
                                 warn!("[InputRecorder] Failed to send action: {}", e);
                             }
@@ -233,7 +235,7 @@ unsafe extern "system" fn keyboard_hook_proc(
             });
         }
     }
-    
+
     // Always pass to next hook (don't block input)
     CallNextHookEx(HHOOK::default(), code, wparam, lparam)
 }
@@ -270,7 +272,7 @@ impl InputRecorder {
 
         let (tx, rx) = channel::<MacroAction>();
         let (stop_tx, stop_rx) = channel::<()>();
-        
+
         self.receiver = Some(rx);
         self.stop_signal = Some(stop_tx);
 
@@ -280,7 +282,7 @@ impl InputRecorder {
         // Spawn the listener thread with Windows message pump
         let handle = thread::spawn(move || {
             info!("[InputRecorder] Listener thread started (Windows)");
-            
+
             // Set up thread-local storage for the hook callback
             HOOK_TX.with(|cell| {
                 *cell.borrow_mut() = Some(tx);
@@ -295,21 +297,15 @@ impl InputRecorder {
             HOOK_KEYS_HELD.with(|cell| {
                 cell.borrow_mut().clear();
             });
-            
+
             // Install the keyboard hook
-            let hook = unsafe {
-                SetWindowsHookExW(
-                    WH_KEYBOARD_LL,
-                    Some(keyboard_hook_proc),
-                    None,
-                    0,
-                )
-            };
-            
+            let hook =
+                unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), None, 0) };
+
             match hook {
                 Ok(h) => {
                     info!("[InputRecorder] Keyboard hook installed successfully");
-                    
+
                     // Run message pump - this is REQUIRED for low-level hooks to work on Windows
                     let mut msg = MSG::default();
                     loop {
@@ -318,13 +314,15 @@ impl InputRecorder {
                             info!("[InputRecorder] Stop signal received");
                             break;
                         }
-                        
+
                         // Process messages with a timeout (non-blocking peek)
                         unsafe {
                             // Use GetMessage which blocks, but we check stop_rx periodically
                             // Actually, use PeekMessage to avoid blocking indefinitely
-                            use windows::Win32::UI::WindowsAndMessaging::{PeekMessageW, PM_REMOVE};
-                            
+                            use windows::Win32::UI::WindowsAndMessaging::{
+                                PeekMessageW, PM_REMOVE,
+                            };
+
                             if PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
                                 TranslateMessage(&msg);
                                 DispatchMessageW(&msg);
@@ -334,7 +332,7 @@ impl InputRecorder {
                             }
                         }
                     }
-                    
+
                     // Unhook
                     unsafe {
                         let _ = UnhookWindowsHookEx(h);
@@ -345,7 +343,7 @@ impl InputRecorder {
                     error!("[InputRecorder] Failed to install keyboard hook: {:?}", e);
                 }
             }
-            
+
             // Clean up thread-local storage
             HOOK_RECORDING.with(|cell| {
                 *cell.borrow_mut() = false;
@@ -356,7 +354,7 @@ impl InputRecorder {
             HOOK_KEYS_HELD.with(|cell| {
                 cell.borrow_mut().clear();
             });
-            
+
             info!("[InputRecorder] Listener thread ending");
         });
 
@@ -374,15 +372,15 @@ impl InputRecorder {
     pub fn stop_recording(&mut self) -> Vec<MacroAction> {
         info!("[InputRecorder] Stopping recording...");
         self.is_recording.store(false, Ordering::SeqCst);
-        
+
         // Signal the thread to stop
         if let Some(ref stop_tx) = self.stop_signal {
             let _ = stop_tx.send(());
         }
-        
+
         // Give the thread a moment to process remaining events
         std::thread::sleep(std::time::Duration::from_millis(50));
-        
+
         let mut actions = Vec::new();
         if let Some(ref rx) = self.receiver {
             // Drain all pending events
@@ -396,7 +394,7 @@ impl InputRecorder {
         // Clean up
         self.receiver = None;
         self.stop_signal = None;
-        
+
         // Optimize: remove very small delays
         Self::optimize_actions(actions)
     }

@@ -31,7 +31,7 @@ use iced::{
 use once_cell::sync::Lazy;
 use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::{self, Receiver};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 /// Global channel for IPC messages from Runner
@@ -197,6 +197,36 @@ fn process_ipc_messages() -> Option<Message> {
     }
 
     None
+}
+
+fn start_ipc_listener(client_arc: Arc<Mutex<NamedPipeClient>>) {
+    let (tx, rx) = mpsc::channel::<TrayToGui>();
+
+    if let Ok(mut guard) = IPC_MESSAGE_RX.lock() {
+        *guard = Some(rx);
+    }
+
+    std::thread::spawn(move || {
+        println!("[IPC-LISTENER] Started listening for Runner messages");
+        loop {
+            if let Ok(client) = client_arc.lock() {
+                match client.try_recv() {
+                    Ok(Some(msg)) => {
+                        println!("[IPC-LISTENER] Received: {:?}", msg);
+                        if tx.send(msg).is_err() {
+                            println!("[IPC-LISTENER] GUI channel closed, exiting");
+                            break;
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(e) => {
+                        eprintln!("[IPC-LISTENER] Error receiving: {}", e);
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    });
 }
 
 impl GameOptimizer {
@@ -459,12 +489,16 @@ impl GameOptimizer {
             use windows::Win32::Foundation::HWND;
             use windows::Win32::UI::WindowsAndMessaging::*;
 
-            // Find window by class or enumerate to find ours
-            // iced windows typically have the title we set
-            let title: Vec<u16> = "Edge Optimizer - Profile Manager\0"
+            let control_center_title: Vec<u16> =
+                "Edge Optimizer - Control Center\0".encode_utf16().collect();
+            let legacy_title: Vec<u16> = "Edge Optimizer - Profile Manager\0"
                 .encode_utf16()
                 .collect();
-            let hwnd = FindWindowW(None, windows::core::PCWSTR(title.as_ptr()));
+
+            let mut hwnd = FindWindowW(None, windows::core::PCWSTR(control_center_title.as_ptr()));
+            if hwnd == HWND::default() {
+                hwnd = FindWindowW(None, windows::core::PCWSTR(legacy_title.as_ptr()));
+            }
 
             if hwnd != HWND::default() {
                 println!("[GUI] Found window, bringing to front");
@@ -537,7 +571,7 @@ impl Application for GameOptimizer {
     }
 
     fn title(&self) -> String {
-        String::from("Edge Optimizer - Profile Manager")
+        String::from("Edge Optimizer - Control Center")
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -637,6 +671,22 @@ impl Application for GameOptimizer {
             }
 
             Message::IpcTick => {
+                if self.ipc_client.is_none() {
+                    match NamedPipeClient::try_connect() {
+                        Ok(Some(client)) => {
+                            let arc = Arc::new(Mutex::new(client));
+                            start_ipc_listener(arc.clone());
+                            self.ipc_client = Some(arc);
+                            self.status_message = "Runner connected".to_string();
+                            self.notify_runner_profile_changed();
+                        }
+                        Ok(None) => {}
+                        Err(e) => {
+                            eprintln!("[GUI] IPC reconnect failed: {}", e);
+                        }
+                    }
+                }
+
                 // Process IPC messages from Runner
                 if let Some(ipc_msg) = process_ipc_messages() {
                     return self.update(ipc_msg);
@@ -711,11 +761,13 @@ impl Application for GameOptimizer {
             }
 
             Message::ProfileSelected(index) => {
+                self.current_page = Page::Profiles;
                 self.load_profile_to_edit(index);
                 self.status_message = format!("Editing profile: {}", self.edit_name);
             }
 
             Message::NewProfile => {
+                self.current_page = Page::Profiles;
                 self.clear_edit_form();
                 self.status_message = "Creating new profile".to_string();
             }
@@ -862,105 +914,582 @@ impl Application for GameOptimizer {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        // LEFT SIDEBAR: Profiles + Macros section
-        let mut sidebar = Column::new()
-            .spacing(5)
-            .padding(10)
-            .width(Length::Fixed(200.0))
-            .push(Text::new("📋 Profiles").size(18));
+        let mut sidebar =
+            Column::new()
+                .spacing(10)
+                .padding(16)
+                .width(Length::Fixed(250.0))
+                .push(Text::new("EDGE OPTIMIZER").size(24))
+                .push(Text::new("Gaming orchestration cockpit").size(12).style(
+                    iced::theme::Text::Color(iced::Color::from_rgb(0.68, 0.74, 0.82)),
+                ))
+                .push(Space::new(Length::Fill, Length::Fixed(8.0)))
+                .push(Text::new("Profiles").size(20))
+                .push(Text::new("Quick profile switching").size(12).style(
+                    iced::theme::Text::Color(iced::Color::from_rgb(0.68, 0.74, 0.82)),
+                ));
 
-        // Profile list
         for (i, profile) in self.profiles.iter().enumerate() {
             let is_selected =
                 self.selected_profile_index == Some(i) && self.current_page == Page::Profiles;
             let is_active = self.active_profile_name.as_ref() == Some(&profile.name);
-
             let label = if is_active {
-                format!("🟢 {}", profile.name)
-            } else if is_selected {
-                format!("▶ {}", profile.name)
+                format!("Active  {}", profile.name)
             } else {
                 profile.name.clone()
             };
 
             sidebar = sidebar.push(
-                Button::new(Text::new(label).size(13))
+                Button::new(Text::new(label).size(14))
+                    .style(styles::nav_button(is_selected || is_active))
                     .on_press(Message::ProfileSelected(i))
                     .width(Length::Fill)
-                    .padding(6),
+                    .padding([11, 12]),
             );
         }
 
         sidebar = sidebar
-            .push(Space::new(Length::Fill, Length::Fixed(5.0)))
+            .push(Space::new(Length::Fill, Length::Fixed(6.0)))
             .push(
-                Button::new(Text::new("+ New Profile").size(12))
+                Button::new(Text::new("+ New Profile").size(13))
+                    .style(styles::primary_button())
                     .on_press(Message::NewProfile)
                     .width(Length::Fill)
-                    .padding(8),
-            );
-
-        // Macros section in sidebar
-        sidebar = sidebar
-            .push(Space::new(Length::Fill, Length::Fixed(20.0)))
-            .push(Text::new("🎮 Macros").size(18))
-            .push(Space::new(Length::Fill, Length::Fixed(5.0)))
+                    .padding([11, 12]),
+            )
+            .push(Space::new(Length::Fill, Length::Fixed(24.0)))
+            .push(Text::new("Macros").size(20))
+            .push(Text::new("Recording and trigger editor").size(12).style(
+                iced::theme::Text::Color(iced::Color::from_rgb(0.68, 0.74, 0.82)),
+            ))
+            .push(Space::new(Length::Fill, Length::Fixed(6.0)))
             .push(
                 Button::new(
                     Text::new(if self.current_page == Page::Macros {
-                        "▶ Macro Editor"
+                        "Macro Editor"
                     } else {
-                        "  Macro Editor"
+                        "Open Macro Editor"
                     })
-                    .size(13),
+                    .size(14),
                 )
+                .style(styles::nav_button(self.current_page == Page::Macros))
                 .on_press(Message::NavigateTo(Page::Macros))
                 .width(Length::Fill)
-                .padding(6),
+                .padding([11, 12]),
             );
 
-        let left_panel = Container::new(Scrollable::new(sidebar)).height(Length::Fill);
+        let left_panel = Container::new(Scrollable::new(sidebar))
+            .padding(4)
+            .style(styles::sidebar())
+            .height(Length::Fill);
 
-        // MAIN CONTENT based on current page
-        let main_content: Element<'_, Message> = match self.current_page {
-            Page::Profiles => self.render_profile_editor(),
-            Page::Macros => self.render_macros_page(),
+        let mode_switch = Row::new()
+            .spacing(10)
+            .push(
+                Button::new(Text::new("Profile Studio").size(14))
+                    .style(styles::nav_button(self.current_page == Page::Profiles))
+                    .on_press(Message::NavigateTo(Page::Profiles))
+                    .padding([10, 14]),
+            )
+            .push(
+                Button::new(Text::new("Macro Deck").size(14))
+                    .style(styles::nav_button(self.current_page == Page::Macros))
+                    .on_press(Message::NavigateTo(Page::Macros))
+                    .padding([10, 14]),
+            );
+
+        let hero_title = match self.current_page {
+            Page::Profiles => "Game Profile Command Center",
+            Page::Macros => "Macro Deck and Trigger Routing",
+        };
+        let hero_subtitle = match self.current_page {
+            Page::Profiles => {
+                "Build a lean pre-game profile: process shutdowns, cleanup, crosshair, and activation policy."
+            }
+            Page::Macros => {
+                "Design automation chains and shortcuts tied to the currently selected profile."
+            }
         };
 
-        // Status bar
+        let hero = Container::new(
+            Column::new()
+                .spacing(8)
+                .push(Text::new(hero_title).size(30))
+                .push(
+                    Text::new(hero_subtitle)
+                        .size(13)
+                        .style(iced::theme::Text::Color(iced::Color::from_rgb(
+                            0.70, 0.78, 0.88,
+                        ))),
+                )
+                .push(mode_switch),
+        )
+        .style(styles::hero_panel())
+        .padding(18);
+
+        let main_content: Element<'_, Message> = match self.current_page {
+            Page::Profiles => self.render_profile_editor_modern(),
+            Page::Macros => self.render_macros_page_modern(),
+        };
+
         let status_bar = Container::new(
             Row::new()
                 .spacing(20)
                 .push(Text::new(&self.status_message).size(14))
                 .push(Space::new(Length::Fill, Length::Shrink))
                 .push(if let Some(ref name) = self.active_profile_name {
-                    Text::new(format!("🟢 Active: {} | 📌 Tray", name)).size(14)
+                    Text::new(format!("Active profile: {} | Tray ready", name)).size(14)
                 } else {
-                    Text::new("No active profile | 📌 Tray").size(14)
+                    Text::new("No active profile | Tray ready").size(14)
                 }),
         )
+        .style(styles::status_bar())
         .width(Length::Fill)
-        .padding(10)
-        .height(Length::Fixed(40.0));
+        .padding(12)
+        .height(Length::Fixed(48.0));
 
         let content = Column::new()
+            .spacing(12)
             .push(
                 Row::new()
+                    .spacing(12)
                     .push(left_panel)
-                    .push(main_content)
+                    .push(
+                        Container::new(
+                            Column::new()
+                                .spacing(12)
+                                .push(hero)
+                                .push(Container::new(main_content).style(styles::panel_card())),
+                        )
+                        .style(styles::panel_card())
+                        .padding(12),
+                    )
                     .height(Length::Fill),
             )
             .push(status_bar);
+
+        Container::new(content)
+            .style(styles::root())
+            .padding(12)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    }
+}
+impl GameOptimizer {
+    fn render_profile_editor_modern(&self) -> Element<'_, Message> {
+        let crosshair_image_name = self
+            .edit_image_path
+            .as_ref()
+            .map(|path| path.split('\\').last().unwrap_or(path).to_string())
+            .unwrap_or_else(|| "No image selected (100x100 PNG recommended)".to_string());
+
+        let profile_name_block = Container::new(
+            Column::new()
+                .spacing(8)
+                .push(Text::new("Profile Name").size(14))
+                .push(
+                    TextInput::new("Enter profile name...", &self.edit_name)
+                        .on_input(Message::ProfileNameChanged)
+                        .padding([11, 12])
+                        .style(styles::text_input())
+                        .width(Length::Fill),
+                ),
+        )
+        .style(styles::panel_card())
+        .padding(16);
+
+        let fan_block = Container::new(
+            Row::new()
+                .spacing(20)
+                .align_items(Alignment::Center)
+                .push(Text::new("Fan Speed Policy").size(16))
+                .push(
+                    Toggler::new(
+                        Some("Set fan to max while this profile is active".to_string()),
+                        self.edit_fan_speed_max,
+                        Message::FanSpeedMaxToggled,
+                    )
+                    .width(Length::Shrink),
+                ),
+        )
+        .style(styles::panel_card())
+        .padding(16);
+
+        let process_block = Container::new(
+            Column::new()
+                .spacing(10)
+                .push(
+                    Row::new()
+                        .spacing(10)
+                        .align_items(Alignment::Center)
+                        .push(Text::new("Processes to Stop").size(18))
+                        .push(
+                            Button::new(Text::new("Refresh list").size(13))
+                                .on_press(Message::RefreshProcesses)
+                                .style(styles::subtle_button())
+                                .padding([8, 12]),
+                        ),
+                )
+                .push(
+                    Text::new("Choose apps that should be closed when optimization starts.")
+                        .size(12)
+                        .style(iced::theme::Text::Color(iced::Color::from_rgb(
+                            0.68, 0.74, 0.82,
+                        ))),
+                )
+                .push(
+                    TextInput::new("Filter by process name...", &self.process_filter)
+                        .on_input(Message::ProcessFilterChanged)
+                        .padding([10, 12])
+                        .style(styles::text_input())
+                        .width(Length::Fill),
+                )
+                .push(self.render_process_selector_modern())
+                .push(
+                    Row::new()
+                        .spacing(10)
+                        .push(
+                            Button::new(Text::new("Recycle Bin Cleanup").size(13))
+                                .on_press(Message::RequestCleanup(CleanupKind::RecycleBin))
+                                .style(styles::subtle_button())
+                                .padding([9, 12]),
+                        )
+                        .push(
+                            Button::new(Text::new("Browser Cache Cleanup").size(13))
+                                .on_press(Message::RequestCleanup(CleanupKind::BrowserCache))
+                                .style(styles::subtle_button())
+                                .padding([9, 12]),
+                        ),
+                ),
+        )
+        .style(styles::panel_card())
+        .padding(16);
+
+        let image_controls = Row::new()
+            .spacing(10)
+            .align_items(Alignment::Center)
+            .push(
+                Button::new(Text::new("Select Image").size(13))
+                    .on_press(Message::SelectImage)
+                    .style(styles::primary_button())
+                    .padding([9, 12]),
+            )
+            .push(if self.edit_image_path.is_some() {
+                Button::new(Text::new("Clear").size(13))
+                    .on_press(Message::ClearImage)
+                    .style(styles::danger_button())
+                    .padding([9, 12])
+            } else {
+                Button::new(Text::new("Clear").size(13))
+                    .style(styles::danger_button())
+                    .padding([9, 12])
+            })
+            .push(Text::new(crosshair_image_name).size(12));
+
+        let crosshair_pad = Container::new(
+            Column::new()
+                .spacing(6)
+                .align_items(Alignment::Center)
+                .push(Text::new("Crosshair Position").size(14))
+                .push(
+                    Row::new()
+                        .spacing(10)
+                        .push(Space::new(Length::Fixed(42.0), Length::Shrink))
+                        .push(
+                            Button::new(Text::new("Up").size(12))
+                                .on_press(Message::CrosshairMoveUp)
+                                .style(styles::subtle_button())
+                                .padding([8, 10])
+                                .width(Length::Fixed(58.0)),
+                        )
+                        .push(Space::new(Length::Fixed(42.0), Length::Shrink)),
+                )
+                .push(
+                    Row::new()
+                        .spacing(6)
+                        .push(
+                            Button::new(Text::new("Left").size(12))
+                                .on_press(Message::CrosshairMoveLeft)
+                                .style(styles::subtle_button())
+                                .padding([8, 10])
+                                .width(Length::Fixed(58.0)),
+                        )
+                        .push(
+                            Button::new(Text::new("Center").size(12))
+                                .on_press(Message::CrosshairCenter)
+                                .style(styles::primary_button())
+                                .padding([8, 10])
+                                .width(Length::Fixed(72.0)),
+                        )
+                        .push(
+                            Button::new(Text::new("Right").size(12))
+                                .on_press(Message::CrosshairMoveRight)
+                                .style(styles::subtle_button())
+                                .padding([8, 10])
+                                .width(Length::Fixed(58.0)),
+                        ),
+                )
+                .push(
+                    Row::new()
+                        .spacing(10)
+                        .push(Space::new(Length::Fixed(42.0), Length::Shrink))
+                        .push(
+                            Button::new(Text::new("Down").size(12))
+                                .on_press(Message::CrosshairMoveDown)
+                                .style(styles::subtle_button())
+                                .padding([8, 10])
+                                .width(Length::Fixed(58.0)),
+                        )
+                        .push(Space::new(Length::Fixed(42.0), Length::Shrink)),
+                )
+                .push(Text::new(format!(
+                    "Offset: X={}  Y={}",
+                    self.edit_x_offset, self.edit_y_offset
+                ))),
+        )
+        .style(styles::panel_card())
+        .padding(14);
+
+        let crosshair_block = Container::new(
+            Column::new()
+                .spacing(12)
+                .push(Text::new("Crosshair Overlay").size(18))
+                .push(
+                    Text::new(
+                        "Fine tune center offset with directional controls or manual coordinates.",
+                    )
+                    .size(12)
+                    .style(iced::theme::Text::Color(iced::Color::from_rgb(
+                        0.68, 0.74, 0.82,
+                    ))),
+                )
+                .push(image_controls)
+                .push(crosshair_pad)
+                .push(
+                    Row::new()
+                        .spacing(14)
+                        .align_items(Alignment::Center)
+                        .push(Text::new("Manual").size(13))
+                        .push(Text::new("X").size(12))
+                        .push(
+                            TextInput::new("0", &self.edit_x_offset)
+                                .on_input(Message::CrosshairOffsetXChanged)
+                                .style(styles::text_input())
+                                .width(Length::Fixed(80.0))
+                                .padding([8, 10]),
+                        )
+                        .push(Text::new("Y").size(12))
+                        .push(
+                            TextInput::new("0", &self.edit_y_offset)
+                                .on_input(Message::CrosshairOffsetYChanged)
+                                .style(styles::text_input())
+                                .width(Length::Fixed(80.0))
+                                .padding([8, 10]),
+                        ),
+                )
+                .push(
+                    Checkbox::new("Enable crosshair overlay", self.edit_overlay_enabled)
+                        .on_toggle(Message::OverlayEnabledToggled),
+                ),
+        )
+        .style(styles::panel_card())
+        .padding(16);
+
+        let actions = Row::new()
+            .spacing(10)
+            .push(
+                Button::new(Text::new("Save Profile"))
+                    .on_press(Message::SaveProfile)
+                    .style(styles::primary_button())
+                    .padding([10, 16]),
+            )
+            .push(
+                Button::new(Text::new("Open Macro Deck"))
+                    .on_press(Message::NavigateTo(Page::Macros))
+                    .style(styles::subtle_button())
+                    .padding([10, 16]),
+            )
+            .push(if self.selected_profile_index.is_some() {
+                Button::new(Text::new("Delete"))
+                    .on_press(Message::DeleteProfile)
+                    .style(styles::danger_button())
+                    .padding([10, 16])
+            } else {
+                Button::new(Text::new("Delete"))
+                    .style(styles::danger_button())
+                    .padding([10, 16])
+            })
+            .push(if self.selected_profile_index.is_some() {
+                Button::new(Text::new("Activate"))
+                    .on_press(Message::ActivateProfile)
+                    .style(styles::primary_button())
+                    .padding([10, 16])
+            } else {
+                Button::new(Text::new("Activate"))
+                    .style(styles::primary_button())
+                    .padding([10, 16])
+            });
+
+        let edit_section = Column::new()
+            .spacing(14)
+            .padding(16)
+            .push(Text::new("Profile Studio").size(28))
+            .push(
+                Text::new("Tune performance behavior for each game profile.")
+                    .size(13)
+                    .style(iced::theme::Text::Color(iced::Color::from_rgb(
+                        0.68, 0.74, 0.82,
+                    ))),
+            )
+            .push(profile_name_block)
+            .push(fan_block)
+            .push(process_block)
+            .push(crosshair_block)
+            .push(Space::new(Length::Fill, Length::Fixed(6.0)))
+            .push(actions);
+
+        Container::new(Scrollable::new(edit_section))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .padding(8)
+            .into()
+    }
+
+    fn render_macros_page_modern(&self) -> Element<'_, Message> {
+        let profile_name = self
+            .selected_profile_index
+            .and_then(|i| self.profiles.get(i))
+            .map(|p| p.name.clone())
+            .unwrap_or_else(|| "No profile selected".to_string());
+
+        let header = Container::new(
+            Column::new()
+                .spacing(8)
+                .push(Text::new("Macro Control").size(28))
+                .push(Text::new(format!("Current profile: {}", profile_name)).size(14))
+                .push(
+                    Text::new("Record or edit macro chains used during optimization sessions.")
+                        .size(12)
+                        .style(iced::theme::Text::Color(iced::Color::from_rgb(
+                            0.68, 0.74, 0.82,
+                        ))),
+                ),
+        )
+        .style(styles::panel_card())
+        .padding(16);
+
+        let macro_editor = self.macro_editor_state.view().map(Message::MacroMessage);
+
+        let save_button = Button::new(Text::new("Save Macros"))
+            .on_press(Message::SaveMacros)
+            .style(styles::primary_button())
+            .padding([10, 16]);
+
+        let back_button = Button::new(Text::new("Back to Profile Studio"))
+            .on_press(Message::NavigateTo(Page::Profiles))
+            .style(styles::subtle_button())
+            .padding([10, 16]);
+
+        let content = Column::new()
+            .spacing(15)
+            .padding(16)
+            .push(header)
+            .push(
+                Container::new(macro_editor)
+                    .style(styles::panel_card())
+                    .padding(12),
+            )
+            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
+            .push(Row::new().spacing(10).push(back_button).push(save_button));
 
         Container::new(content)
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
     }
-}
 
-impl GameOptimizer {
+    fn render_process_selector_modern(&self) -> Element<'_, Message> {
+        let filter_lower = self.process_filter.to_lowercase();
+
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut processes_to_show: Vec<(&str, &str, Option<f32>, Option<u64>)> = Vec::new();
+
+        for proc in &self.running_processes {
+            let name_lower = proc.name.to_lowercase();
+            if !seen.contains(&name_lower)
+                && (filter_lower.is_empty() || name_lower.contains(&filter_lower))
+            {
+                seen.insert(name_lower);
+                processes_to_show.push((
+                    &proc.name,
+                    &proc.name,
+                    Some(proc.cpu_percent),
+                    Some(proc.memory_kb),
+                ));
+            }
+        }
+
+        for (name, exe) in COMMON_APPS.iter() {
+            let exe_lower = exe.to_lowercase();
+            if !seen.contains(&exe_lower)
+                && self.process_selection.get(*exe).copied().unwrap_or(false)
+                && (filter_lower.is_empty()
+                    || exe_lower.contains(&filter_lower)
+                    || name.to_lowercase().contains(&filter_lower))
+            {
+                seen.insert(exe_lower);
+                processes_to_show.push((name, exe, None, None));
+            }
+        }
+
+        processes_to_show.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+
+        let mut list = Column::new().spacing(6);
+
+        if processes_to_show.is_empty() {
+            list = list.push(Text::new("No processes match this filter.").size(12).style(
+                iced::theme::Text::Color(iced::Color::from_rgb(0.68, 0.74, 0.82)),
+            ));
+        } else {
+            for (display_name, exe_name, cpu, mem) in processes_to_show.iter().take(80) {
+                let is_selected = self
+                    .process_selection
+                    .get(*exe_name)
+                    .copied()
+                    .unwrap_or(false);
+                let exe_string = exe_name.to_string();
+
+                let info = match (cpu, mem) {
+                    (Some(c), Some(m)) => {
+                        format!("{}  |  CPU {:.1}%  |  {} MB", display_name, c, m / 1024)
+                    }
+                    _ => format!("{}  |  not running", display_name),
+                };
+
+                list = list.push(
+                    Container::new(
+                        Checkbox::new(info, is_selected)
+                            .on_toggle(move |checked| {
+                                Message::ProcessToggled(exe_string.clone(), checked)
+                            })
+                            .width(Length::Fill),
+                    )
+                    .style(styles::panel_card())
+                    .padding([8, 10]),
+                );
+            }
+        }
+
+        Container::new(Scrollable::new(list).height(Length::Fixed(245.0)))
+            .style(styles::panel_card())
+            .padding(6)
+            .width(Length::Fill)
+            .into()
+    }
+
     /// Render the Profile Editor (main content area for profiles page)
+    #[allow(dead_code)]
     fn render_profile_editor(&self) -> Element<'_, Message> {
         // Profile Edit form
         let edit_section = Column::new()
@@ -1201,6 +1730,7 @@ impl GameOptimizer {
     }
 
     /// Render the Macros page
+    #[allow(dead_code)]
     fn render_macros_page(&self) -> Element<'_, Message> {
         let profile_name = self
             .selected_profile_index
@@ -1234,6 +1764,7 @@ impl GameOptimizer {
             .into()
     }
 
+    #[allow(dead_code)]
     fn render_process_selector(&self) -> Element<'_, Message> {
         let filter_lower = self.process_filter.to_lowercase();
 
@@ -1332,43 +1863,11 @@ pub fn run_with_ipc(
     println!("[GUI] Starting GUI with IPC support...");
 
     // Wrap IPC client in Arc<Mutex> for thread-safe sharing
-    let ipc_arc = ipc_client.map(|c| std::sync::Arc::new(Mutex::new(c)));
+    let ipc_arc = ipc_client.map(|c| Arc::new(Mutex::new(c)));
 
     // If we have an IPC client, start a listener thread
     if let Some(ref client_arc) = ipc_arc {
-        let client_clone = client_arc.clone();
-        let (tx, rx) = mpsc::channel::<TrayToGui>();
-
-        // Store the IPC receiver globally
-        if let Ok(mut guard) = IPC_MESSAGE_RX.lock() {
-            *guard = Some(rx);
-        }
-
-        // Start IPC listener thread
-        std::thread::spawn(move || {
-            println!("[IPC-LISTENER] Started listening for Runner messages");
-            loop {
-                // Try to receive IPC messages
-                if let Ok(client) = client_clone.lock() {
-                    match client.try_recv() {
-                        Ok(Some(msg)) => {
-                            println!("[IPC-LISTENER] Received: {:?}", msg);
-                            if tx.send(msg).is_err() {
-                                println!("[IPC-LISTENER] GUI channel closed, exiting");
-                                break;
-                            }
-                        }
-                        Ok(None) => {
-                            // No message available
-                        }
-                        Err(e) => {
-                            eprintln!("[IPC-LISTENER] Error receiving: {}", e);
-                        }
-                    }
-                }
-                std::thread::sleep(Duration::from_millis(20));
-            }
-        });
+        start_ipc_listener(client_arc.clone());
     }
 
     // Prepare flags for the application

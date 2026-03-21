@@ -9,8 +9,8 @@ use std::sync::OnceLock;
 use tracing::{debug, error};
 use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT,
-    WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, WH_KEYBOARD_LL,
+    WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 /// Global keyboard hook handle
@@ -76,11 +76,7 @@ pub fn uninstall_keyboard_hook() {
 }
 
 /// Keyboard hook callback procedure
-unsafe extern "system" fn keyboard_proc(
-    n_code: i32,
-    w_param: WPARAM,
-    l_param: LPARAM,
-) -> LRESULT {
+unsafe extern "system" fn keyboard_proc(n_code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     // Process the event if code is >= 0
     if n_code >= 0 {
         let kb_struct = &*(l_param.0 as *const KBDLLHOOKSTRUCT);

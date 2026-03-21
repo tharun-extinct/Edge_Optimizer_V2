@@ -21,9 +21,6 @@ use edge_optimizer_core::{
     profile::Profile,
     tray_icon::TrayIconManager,
 };
-use std::fs::OpenOptions;
-use std::io::ErrorKind;
-use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::{Duration, Instant};
@@ -34,33 +31,56 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 struct SingleInstanceGuard {
-    lock_path: PathBuf,
+    #[cfg(windows)]
+    mutex: windows::Win32::Foundation::HANDLE,
 }
 
 impl SingleInstanceGuard {
     fn acquire() -> Result<Self> {
-        let lock_path = std::env::temp_dir().join("EdgeOptimizer.Runner.lock");
-        match OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(&lock_path)
+        #[cfg(windows)]
         {
-            Ok(_file) => Ok(Self { lock_path }),
-            Err(e) if e.kind() == ErrorKind::AlreadyExists => {
-                anyhow::bail!("EdgeOptimizer.Runner is already running")
+            use windows::Win32::Foundation::{WAIT_ABANDONED, WAIT_OBJECT_0, WAIT_TIMEOUT};
+            use windows::Win32::System::Threading::{CreateMutexW, WaitForSingleObject};
+
+            let mutex_name: Vec<u16> = "EdgeOptimizer.Runner.SingleInstance\0"
+                .encode_utf16()
+                .collect();
+
+            let mutex =
+                unsafe { CreateMutexW(None, false, windows::core::PCWSTR(mutex_name.as_ptr())) }
+                    .context("failed to create runner single-instance mutex")?;
+
+            let wait_result = unsafe { WaitForSingleObject(mutex, 0) };
+            if wait_result == WAIT_TIMEOUT {
+                unsafe {
+                    let _ = windows::Win32::Foundation::CloseHandle(mutex);
+                }
+                anyhow::bail!("EdgeOptimizer.Runner is already running");
             }
-            Err(e) => Err(anyhow::anyhow!(
-                "failed to create runner lock file {:?}: {}",
-                lock_path,
-                e
-            )),
+            if wait_result != WAIT_OBJECT_0 && wait_result != WAIT_ABANDONED {
+                unsafe {
+                    let _ = windows::Win32::Foundation::CloseHandle(mutex);
+                }
+                anyhow::bail!("failed to acquire single-instance mutex");
+            }
+
+            Ok(Self { mutex })
+        }
+
+        #[cfg(not(windows))]
+        {
+            Ok(Self {})
         }
     }
 }
 
 impl Drop for SingleInstanceGuard {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.lock_path);
+        #[cfg(windows)]
+        unsafe {
+            let _ = windows::Win32::System::Threading::ReleaseMutex(self.mutex);
+            let _ = windows::Win32::Foundation::CloseHandle(self.mutex);
+        }
     }
 }
 
@@ -579,10 +599,16 @@ fn spawn_settings_window(flag: Option<&str>) -> Result<()> {
 
 fn bring_existing_settings_to_front() -> bool {
     unsafe {
-        let title: Vec<u16> = "Edge Optimizer - Profile Manager\0"
+        let control_center_title: Vec<u16> =
+            "Edge Optimizer - Control Center\0".encode_utf16().collect();
+        let legacy_title: Vec<u16> = "Edge Optimizer - Profile Manager\0"
             .encode_utf16()
             .collect();
-        let hwnd = FindWindowW(None, PCWSTR(title.as_ptr()));
+
+        let mut hwnd = FindWindowW(None, PCWSTR(control_center_title.as_ptr()));
+        if hwnd == HWND::default() {
+            hwnd = FindWindowW(None, PCWSTR(legacy_title.as_ptr()));
+        }
 
         if hwnd != HWND::default() {
             if IsIconic(hwnd).as_bool() {

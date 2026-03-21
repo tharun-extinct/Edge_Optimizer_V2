@@ -86,14 +86,8 @@ pub fn run_ipc_listener(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
             let mut buffer = [0u8; 8192];
             let mut bytes_read = 0u32;
 
-            let read_result = unsafe {
-                ReadFile(
-                    pipe_handle,
-                    Some(&mut buffer),
-                    Some(&mut bytes_read),
-                    None,
-                )
-            };
+            let read_result =
+                unsafe { ReadFile(pipe_handle, Some(&mut buffer), Some(&mut bytes_read), None) };
 
             match read_result {
                 Ok(_) if bytes_read > 0 => {

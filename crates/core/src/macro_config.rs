@@ -30,15 +30,9 @@ impl std::fmt::Display for MouseButton {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum MacroAction {
     /// Key press (key down) with optional delay in milliseconds
-    KeyPress {
-        key: String,
-        delay_ms: u64,
-    },
+    KeyPress { key: String, delay_ms: u64 },
     /// Key release (key up) with optional delay in milliseconds
-    KeyRelease {
-        key: String,
-        delay_ms: u64,
-    },
+    KeyRelease { key: String, delay_ms: u64 },
     /// Mouse button click (press or release)
     MouseClick {
         button: MouseButton,
@@ -46,14 +40,9 @@ pub enum MacroAction {
         press: bool,
     },
     /// Move mouse to absolute position
-    MouseMove {
-        x: i32,
-        y: i32,
-    },
+    MouseMove { x: i32, y: i32 },
     /// Pure delay between actions
-    Delay {
-        ms: u64,
-    },
+    Delay { ms: u64 },
 }
 
 impl MacroAction {

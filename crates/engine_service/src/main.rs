@@ -45,7 +45,8 @@ fn main() -> Result<()> {
                 handle_command(&request)
             };
 
-            let response = request.respond("edge-engine", AuthContext::RunnerService, response_payload);
+            let response =
+                request.respond("edge-engine", AuthContext::RunnerService, response_payload);
             if let Err(e) = server.send(&response) {
                 tracing::warn!("failed to send engine response: {}", e);
                 server.disconnect();
@@ -169,4 +170,3 @@ fn clear_browser_cache() -> Result<String> {
         cleaned
     ))
 }
-

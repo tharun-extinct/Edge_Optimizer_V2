@@ -96,7 +96,8 @@ pub fn run_hotkey_loop(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
     info!("Starting hotkey manager...");
 
     // Create the global hotkey manager
-    let manager = GlobalHotKeyManager::new().map_err(|e| anyhow::anyhow!("Failed to create hotkey manager: {:?}", e))?;
+    let manager = GlobalHotKeyManager::new()
+        .map_err(|e| anyhow::anyhow!("Failed to create hotkey manager: {:?}", e))?;
 
     // Map of hotkey ID -> macro name for quick lookup
     let mut hotkey_map: HashMap<u32, String> = HashMap::new();

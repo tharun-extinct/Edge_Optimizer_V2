@@ -18,6 +18,12 @@ use edge_optimizer_core::ipc::NamedPipeClient;
 use edge_optimizer_core::StartupFlags;
 
 fn main() -> anyhow::Result<()> {
+    #[cfg(windows)]
+    {
+        // Force wgpu/iced to use DirectX 12 on Windows.
+        std::env::set_var("WGPU_BACKEND", "dx12");
+    }
+
     tracing_subscriber::fmt::init();
 
     tracing::info!("EdgeOptimizer.Settings starting...");

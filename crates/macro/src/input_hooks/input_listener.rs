@@ -3,8 +3,8 @@
 //! High-level API for listening to keyboard and mouse events.
 
 use crate::input_hooks::{
-    install_keyboard_hook, install_mouse_hook, is_keyboard_hook_installed,
-    is_mouse_hook_installed, uninstall_keyboard_hook, uninstall_mouse_hook,
+    install_keyboard_hook, install_mouse_hook, is_keyboard_hook_installed, is_mouse_hook_installed,
+    uninstall_keyboard_hook, uninstall_mouse_hook,
 };
 use crate::types::{KeyboardData, MouseData};
 use crossbeam_channel::{bounded, Receiver};
@@ -104,7 +104,7 @@ impl InputListener {
         // Start the message loop thread
         *listener.running.lock() = true;
         let running = listener.running.clone();
-        
+
         listener.message_thread = Some(thread::spawn(move || {
             info!("Input listener message loop started");
             run_message_loop(running);

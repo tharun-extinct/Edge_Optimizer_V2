@@ -9,8 +9,8 @@
 use crate::macro_config::{CycleMode, MacroAction, MacroDefinition, MacroShortcut, MouseButton};
 use iced::{
     widget::{
-        Button, Checkbox, Column, Container, Image, Radio, Row, Scrollable, Space, Text,
-        TextInput, Rule, mouse_area,
+        mouse_area, Button, Checkbox, Column, Container, Image, Radio, Row, Rule, Scrollable,
+        Space, Text, TextInput,
     },
     Alignment, Element, Length,
 };
@@ -90,7 +90,7 @@ pub enum MacroMessage {
     SetCycleMode(CycleMode),
     CycleCountChanged(String),
     CycleUntilKeyChanged(String),
-    
+
     // Warning popup
     DismissRecordingWarning,
 }
@@ -173,84 +173,114 @@ impl MacroEditorState {
     /// - Holding timing (delay after press): [tab][timer_icon] Nms
     /// - Key Release: [icon] Key
     /// - Time to next key (delay after release): [tab][timer_icon] Nms
-    fn build_action_row<'a>(&self, action: &'a MacroAction, is_selected: bool) -> Element<'a, MacroMessage> {
+    fn build_action_row<'a>(
+        &self,
+        action: &'a MacroAction,
+        is_selected: bool,
+    ) -> Element<'a, MacroMessage> {
         let prefix = if is_selected { "▶ " } else { "   " };
-        
+
         match action {
             MacroAction::KeyPress { key, delay_ms } => {
                 let mut col = Column::new().spacing(1);
-                
+
                 // Key press row: [prefix][icon] Key
                 let press_row = Row::new()
                     .spacing(4)
                     .align_items(Alignment::Center)
                     .push(Text::new(prefix).size(10))
-                    .push(Image::new(ICON_KEY_PRESS).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                    .push(
+                        Image::new(ICON_KEY_PRESS)
+                            .width(Length::Fixed(14.0))
+                            .height(Length::Fixed(14.0)),
+                    )
                     .push(Text::new(key.as_str()).size(10));
                 col = col.push(press_row);
-                
+
                 // If there's a delay, show holding time
                 if *delay_ms > 0 {
                     let delay_row = Row::new()
                         .spacing(4)
                         .align_items(Alignment::Center)
                         .push(Text::new("      ").size(10)) // Tab indent
-                        .push(Image::new(ICON_TIMER).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                        .push(
+                            Image::new(ICON_TIMER)
+                                .width(Length::Fixed(14.0))
+                                .height(Length::Fixed(14.0)),
+                        )
                         .push(Text::new(format!("{}ms", delay_ms)).size(10));
                     col = col.push(delay_row);
                 }
-                
+
                 col.into()
             }
             MacroAction::KeyRelease { key, delay_ms } => {
                 let mut col = Column::new().spacing(1);
-                
+
                 // Key release row: [prefix][icon] Key
                 let release_row = Row::new()
                     .spacing(4)
                     .align_items(Alignment::Center)
                     .push(Text::new(prefix).size(10))
-                    .push(Image::new(ICON_KEY_RELEASE).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                    .push(
+                        Image::new(ICON_KEY_RELEASE)
+                            .width(Length::Fixed(14.0))
+                            .height(Length::Fixed(14.0)),
+                    )
                     .push(Text::new(key.as_str()).size(10));
                 col = col.push(release_row);
-                
+
                 // If there's a delay, show time to next key
                 if *delay_ms > 0 {
                     let delay_row = Row::new()
                         .spacing(4)
                         .align_items(Alignment::Center)
                         .push(Text::new("      ").size(10)) // Tab indent
-                        .push(Image::new(ICON_TIMER).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                        .push(
+                            Image::new(ICON_TIMER)
+                                .width(Length::Fixed(14.0))
+                                .height(Length::Fixed(14.0)),
+                        )
                         .push(Text::new(format!("{}ms", delay_ms)).size(10));
                     col = col.push(delay_row);
                 }
-                
+
                 col.into()
             }
             MacroAction::MouseClick { button, press } => {
-                let icon = if *press { ICON_KEY_PRESS } else { ICON_KEY_RELEASE };
+                let icon = if *press {
+                    ICON_KEY_PRESS
+                } else {
+                    ICON_KEY_RELEASE
+                };
                 Row::new()
                     .spacing(4)
                     .align_items(Alignment::Center)
                     .push(Text::new(prefix).size(10))
-                    .push(Image::new(icon).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                    .push(
+                        Image::new(icon)
+                            .width(Length::Fixed(14.0))
+                            .height(Length::Fixed(14.0)),
+                    )
                     .push(Text::new(format!("{}", button)).size(10))
                     .into()
             }
-            MacroAction::MouseMove { x, y } => {
-                Row::new()
-                    .spacing(4)
-                    .align_items(Alignment::Center)
-                    .push(Text::new(prefix).size(10))
-                    .push(Text::new(format!("⊕ ({}, {})", x, y)).size(10))
-                    .into()
-            }
+            MacroAction::MouseMove { x, y } => Row::new()
+                .spacing(4)
+                .align_items(Alignment::Center)
+                .push(Text::new(prefix).size(10))
+                .push(Text::new(format!("⊕ ({}, {})", x, y)).size(10))
+                .into(),
             MacroAction::Delay { ms } => {
                 Row::new()
                     .spacing(4)
                     .align_items(Alignment::Center)
                     .push(Text::new("      ").size(10)) // Tab indent
-                    .push(Image::new(ICON_TIMER).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)))
+                    .push(
+                        Image::new(ICON_TIMER)
+                            .width(Length::Fixed(14.0))
+                            .height(Length::Fixed(14.0)),
+                    )
                     .push(Text::new(format!("{}ms", ms)).size(10))
                     .into()
             }
@@ -559,7 +589,7 @@ impl MacroEditorState {
                     m.cycle_mode = CycleMode::UntilKeyPressed(key.to_uppercase());
                 }
             }
-            
+
             MacroMessage::DismissRecordingWarning => {
                 self.show_recording_warning = false;
             }
@@ -622,11 +652,7 @@ impl MacroEditorState {
             // Stack the popup over the content
             main_content = Column::new()
                 .push(main_content)
-                .push(
-                    Container::new(warning_popup)
-                        .width(Length::Fill)
-                        .center_x(),
-                )
+                .push(Container::new(warning_popup).width(Length::Fill).center_x())
                 .into();
         }
 
@@ -650,9 +676,7 @@ impl MacroEditorState {
         let mut macro_items = Column::new().spacing(2);
 
         if self.macros.is_empty() {
-            macro_items = macro_items.push(
-                Text::new("No macros.\nClick + or Record.").size(11)
-            );
+            macro_items = macro_items.push(Text::new("No macros.\nClick + or Record.").size(11));
         } else {
             for (i, macro_def) in self.macros.iter().enumerate() {
                 let is_selected = self.selected_macro == Some(i);
@@ -666,8 +690,9 @@ impl MacroEditorState {
                     .padding(4);
 
                 // Wrap with mouse_area for right-click detection
-                let item_with_right_click = mouse_area(select_button)
-                    .on_right_press(MacroMessage::ShowContextMenu(ContextMenuType::MacroList { macro_index: i }));
+                let item_with_right_click = mouse_area(select_button).on_right_press(
+                    MacroMessage::ShowContextMenu(ContextMenuType::MacroList { macro_index: i }),
+                );
 
                 macro_items = macro_items.push(item_with_right_click);
             }
@@ -699,7 +724,7 @@ impl MacroEditorState {
             )
             .padding(5)
             .width(Length::Fixed(100.0));
-            
+
             macro_items = macro_items.push(ctx_menu);
         }
 
@@ -750,29 +775,26 @@ impl MacroEditorState {
             .align_items(Alignment::Center)
             .push(Text::new("⌨️ Keys in Macro").size(15))
             .push(Space::new(Length::Fill, Length::Shrink))
-            .push(
-                if self.selected_action.is_some() {
-                    Button::new(Text::new("🗑").size(10))
-                        .on_press(MacroMessage::DeleteAction)
-                        .padding(4)
-                } else {
-                    Button::new(Text::new("🗑").size(10)).padding(4)
-                }
-            );
+            .push(if self.selected_action.is_some() {
+                Button::new(Text::new("🗑").size(10))
+                    .on_press(MacroMessage::DeleteAction)
+                    .padding(4)
+            } else {
+                Button::new(Text::new("🗑").size(10)).padding(4)
+            });
 
         // Actions list - show ALL actions (scrollable)
         let mut action_items = Column::new().spacing(2);
 
         if let Some(macro_def) = self.current_macro() {
             if macro_def.actions.is_empty() {
-                action_items = action_items.push(
-                    Text::new("No actions.\nRecord or Insert.").size(11)
-                );
+                action_items =
+                    action_items.push(Text::new("No actions.\nRecord or Insert.").size(11));
             } else {
                 // Show ALL actions - container is scrollable
                 for (i, action) in macro_def.actions.iter().enumerate() {
                     let is_selected = self.selected_action == Some(i);
-                    
+
                     // Build action row with icon + text
                     let action_row = self.build_action_row(action, is_selected);
 
@@ -782,16 +804,16 @@ impl MacroEditorState {
                         .padding(3);
 
                     // Wrap with mouse_area for right-click detection
-                    let item_with_right_click = mouse_area(select_button)
-                        .on_right_press(MacroMessage::ShowContextMenu(ContextMenuType::KeysList { action_index: i }));
+                    let item_with_right_click =
+                        mouse_area(select_button).on_right_press(MacroMessage::ShowContextMenu(
+                            ContextMenuType::KeysList { action_index: i },
+                        ));
 
                     action_items = action_items.push(item_with_right_click);
                 }
             }
         } else {
-            action_items = action_items.push(
-                Text::new("Select a macro").size(11)
-            );
+            action_items = action_items.push(Text::new("Select a macro").size(11));
         }
 
         // Show context menu if active for keys list
@@ -820,7 +842,7 @@ impl MacroEditorState {
             )
             .padding(5)
             .width(Length::Fixed(120.0));
-            
+
             action_items = action_items.push(ctx_menu);
         }
 
@@ -836,7 +858,14 @@ impl MacroEditorState {
                 .align_items(Alignment::Center)
                 .push(Text::new("Insert Event").size(12))
                 .push(Space::new(Length::Fill, Length::Shrink))
-                .push(Text::new(if self.insert_menu == InsertEventMenu::Open { "▲" } else { "▼" }).size(10)),
+                .push(
+                    Text::new(if self.insert_menu == InsertEventMenu::Open {
+                        "▲"
+                    } else {
+                        "▼"
+                    })
+                    .size(10),
+                ),
         )
         .on_press(if self.insert_menu == InsertEventMenu::Open {
             MacroMessage::CloseInsertMenu
@@ -870,29 +899,76 @@ impl MacroEditorState {
             .push(
                 Row::new()
                     .spacing(2)
-                    .push(Button::new(Text::new("L↓").size(9)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, true)).padding(3))
-                    .push(Button::new(Text::new("L↑").size(9)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, false)).padding(3))
-                    .push(Button::new(Text::new("R↓").size(9)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, true)).padding(3))
-                    .push(Button::new(Text::new("R↑").size(9)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, false)).padding(3))
-                    .push(Button::new(Text::new("M↓").size(9)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, true)).padding(3))
-                    .push(Button::new(Text::new("M↑").size(9)).on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, false)).padding(3)),
+                    .push(
+                        Button::new(Text::new("L↓").size(9))
+                            .on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, true))
+                            .padding(3),
+                    )
+                    .push(
+                        Button::new(Text::new("L↑").size(9))
+                            .on_press(MacroMessage::InsertMouseAfter(MouseButton::Left, false))
+                            .padding(3),
+                    )
+                    .push(
+                        Button::new(Text::new("R↓").size(9))
+                            .on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, true))
+                            .padding(3),
+                    )
+                    .push(
+                        Button::new(Text::new("R↑").size(9))
+                            .on_press(MacroMessage::InsertMouseAfter(MouseButton::Right, false))
+                            .padding(3),
+                    )
+                    .push(
+                        Button::new(Text::new("M↓").size(9))
+                            .on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, true))
+                            .padding(3),
+                    )
+                    .push(
+                        Button::new(Text::new("M↑").size(9))
+                            .on_press(MacroMessage::InsertMouseAfter(MouseButton::Middle, false))
+                            .padding(3),
+                    ),
             );
 
         let xy_section = Row::new()
             .spacing(3)
             .align_items(Alignment::Center)
             .push(Text::new("XY:").size(9))
-            .push(TextInput::new("X", &self.insert_x).on_input(MacroMessage::InsertXYInputX).width(Length::Fixed(35.0)).padding(2))
-            .push(TextInput::new("Y", &self.insert_y).on_input(MacroMessage::InsertXYInputY).width(Length::Fixed(35.0)).padding(2))
-            .push(Button::new(Text::new("+").size(9)).on_press(MacroMessage::ConfirmInsertXY).padding(3));
+            .push(
+                TextInput::new("X", &self.insert_x)
+                    .on_input(MacroMessage::InsertXYInputX)
+                    .width(Length::Fixed(35.0))
+                    .padding(2),
+            )
+            .push(
+                TextInput::new("Y", &self.insert_y)
+                    .on_input(MacroMessage::InsertXYInputY)
+                    .width(Length::Fixed(35.0))
+                    .padding(2),
+            )
+            .push(
+                Button::new(Text::new("+").size(9))
+                    .on_press(MacroMessage::ConfirmInsertXY)
+                    .padding(3),
+            );
 
         let delay_section = Row::new()
             .spacing(3)
             .align_items(Alignment::Center)
             .push(Text::new("Delay:").size(9))
-            .push(TextInput::new("ms", &self.insert_delay_ms).on_input(MacroMessage::InsertDelayInput).width(Length::Fixed(40.0)).padding(2))
+            .push(
+                TextInput::new("ms", &self.insert_delay_ms)
+                    .on_input(MacroMessage::InsertDelayInput)
+                    .width(Length::Fixed(40.0))
+                    .padding(2),
+            )
             .push(Text::new("ms").size(9))
-            .push(Button::new(Text::new("+").size(9)).on_press(MacroMessage::ConfirmInsertDelay).padding(3));
+            .push(
+                Button::new(Text::new("+").size(9))
+                    .on_press(MacroMessage::ConfirmInsertDelay)
+                    .padding(3),
+            );
 
         Container::new(
             Column::new()
@@ -900,7 +976,7 @@ impl MacroEditorState {
                 .padding(6)
                 .push(mouse_section)
                 .push(xy_section)
-                .push(delay_section)
+                .push(delay_section),
         )
         .width(Length::Fill)
         .into()
@@ -1064,12 +1140,9 @@ impl MacroEditorState {
             .push(
                 Row::new()
                     .spacing(10)
-                    .push(Radio::new(
-                        "Cycle until",
-                        true,
-                        Some(is_until_key),
-                        |_| MacroMessage::SetCycleMode(CycleMode::UntilKeyPressed(String::new())),
-                    ))
+                    .push(Radio::new("Cycle until", true, Some(is_until_key), |_| {
+                        MacroMessage::SetCycleMode(CycleMode::UntilKeyPressed(String::new()))
+                    }))
                     .push(
                         TextInput::new("Key", &self.edit_cycle_key)
                             .on_input(MacroMessage::CycleUntilKeyChanged)
@@ -1081,12 +1154,9 @@ impl MacroEditorState {
             .push(
                 Row::new()
                     .spacing(10)
-                    .push(Radio::new(
-                        "Specified cycle",
-                        true,
-                        Some(is_count),
-                        |_| MacroMessage::SetCycleMode(CycleMode::Count(1)),
-                    ))
+                    .push(Radio::new("Specified cycle", true, Some(is_count), |_| {
+                        MacroMessage::SetCycleMode(CycleMode::Count(1))
+                    }))
                     .push(
                         TextInput::new("1", &self.edit_cycle_count)
                             .on_input(MacroMessage::CycleCountChanged)
@@ -1112,7 +1182,9 @@ impl MacroEditorState {
                         Column::new()
                             .spacing(5)
                             .push(Checkbox::new("CTRL", ctrl).on_toggle(MacroMessage::ToggleCtrl))
-                            .push(Checkbox::new("SHIFT", shift).on_toggle(MacroMessage::ToggleShift)),
+                            .push(
+                                Checkbox::new("SHIFT", shift).on_toggle(MacroMessage::ToggleShift),
+                            ),
                     )
                     .push(
                         Column::new()
@@ -1135,7 +1207,9 @@ impl MacroEditorState {
             .push(
                 Text::new(format!(
                     "Current: {}",
-                    shortcut.map(|s| s.display_text()).unwrap_or("Not set".to_string())
+                    shortcut
+                        .map(|s| s.display_text())
+                        .unwrap_or("Not set".to_string())
                 ))
                 .size(12),
             );
@@ -1152,11 +1226,8 @@ impl MacroEditorState {
                         .width(Length::Fill),
                 )
                 .push(
-                    Checkbox::new(
-                        "Enabled",
-                        current_macro.map(|m| m.enabled).unwrap_or(false),
-                    )
-                    .on_toggle(MacroMessage::ToggleMacroEnabled),
+                    Checkbox::new("Enabled", current_macro.map(|m| m.enabled).unwrap_or(false))
+                        .on_toggle(MacroMessage::ToggleMacroEnabled),
                 )
         } else {
             Column::new().push(Text::new("Select a macro to edit").size(14))

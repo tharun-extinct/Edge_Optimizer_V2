@@ -15,10 +15,10 @@
 
 mod executor;
 mod hotkey_manager;
-mod ipc_handler;
-mod types;
 mod input_hooks;
 mod input_sender;
+mod ipc_handler;
+mod types;
 
 use anyhow::Result;
 use edge_optimizer_core::macro_config::MacroConfig;
@@ -47,8 +47,7 @@ impl Default for MacroAppState {
 
 fn main() -> Result<()> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .init();
+    tracing_subscriber::fmt().init();
 
     info!("EdgeOptimizer.Macro starting...");
 

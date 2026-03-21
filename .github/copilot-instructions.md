@@ -4,20 +4,21 @@ name: EdgeOptimizer
 description: High-performance RUST-based gaming optimization application
 ---
 
-**Project name:** `EdgeOptimizer`
+# **Project name:** `EdgeOptimizer`
 
-**Project description:** EdgeOptimizer is a high-performance RUST-based application designed to 
-  - kill unwanted background processes (that are necessary for gaming)
-  - optimize system performance (Tweaking power plans, disabling Ethernet Energy Efficient mode for lower input delay, etc.)
-  - Add Crosshair overlays for better aiming in FPS games
+## **Project description:** 
+EdgeOptimizer is a high-performance RUST-based application designed to 
+  - Kills unwanted background processes (that aren't necessary for gaming)
+  - Optimizes system performance (Tweaking power plans, disabling Ethernet Energy Efficient mode for lower input delay, etc.)
+  - Crosshair overlays for better aiming in FPS games
   - Boost network performance for reduced latency during online gaming sessions.
 
 
-**This is how you should always act**:
+#### **This is how you should always act**:
 - Always Plan first before writing any code. 
     - Break down the problem into smaller parts (Create Todo list and add 'Build and Test' as the final step)
     - Focus on performance and low latency optimizations
-    - Ask when anything's unclear (might be tech stack or feature related but never assume)
+    - Ask when if you're unclear about anything (might be tech stack or feature related but never assume)
     - Don't implement any feature, until it's explicitly mentioned
 
 

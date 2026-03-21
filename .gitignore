@@ -32,6 +32,10 @@ resources/*
 # MCP Memory files
 memory.jsonl
 
+# Local .NET SDK cache (machine-specific)
+.dotnet/
+*.dotnetUserLevelCache
+
 
 
 .diagrams/
