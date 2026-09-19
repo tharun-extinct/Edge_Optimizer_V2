@@ -10,7 +10,7 @@ A player can configure profile-scoped optimization options, understand their saf
 
 Code inspection on 2026-09-05 confirms Rust profile storage for selected process names and a fan-speed flag, process-name normalization and protected-name tests, Runner-to-Engine command routing with fake-operation tests, and transitional Recycle Bin and browser-cache commands. The WinUI preview provides profile-scoped process selection, filtering, fan and cleanup toggles, selection totals, and restore-default behavior with unit tests.
 
-The WinUI values are memory-only and use fixture process data. Its Recycle Bin and browser-cache toggles do not exist in the Rust profile contract. `fan_speed_max` is stored but is not applied by Engine command dispatch. The transitional EngineSvc performs cleanup in its SYSTEM environment, while the target architecture requires user-specific cleanup in the verified interactive-user context. PID-level safety validation is not implemented.
+The WinUI values are memory-only and leave the process list empty until Runner supplies an authoritative snapshot. Its Recycle Bin and browser-cache toggles do not exist in the Rust profile contract. `fan_speed_max` is stored but is not applied by Engine command dispatch. The transitional EngineSvc performs cleanup in its SYSTEM environment, while the target architecture requires user-specific cleanup in the verified interactive-user context. PID-level safety validation is not implemented.
 
 ## Architecture dependencies
 

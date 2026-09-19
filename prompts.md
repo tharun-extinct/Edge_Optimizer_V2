@@ -242,3 +242,27 @@ dotnet build .\apps\EdgeOptimizer.Settings.WinUI\EdgeOptimizer.Settings.WinUI.cs
 
 & .\apps\EdgeOptimizer.Settings.WinUI\bin\Release\net10.0-windows10.0.19041.0\win-x64\EdgeOptimizer.Settings.WinUI.exe
 ```
+
+
+The primary failure is:
+
+`LINK : fatal error LNK1102: out of memory`
+
+while linking `EdgeOptimizer_Crosshair`. The `E0463: can't find crate for edge_optimizer_core` errors are likely cascading/stale-artifact failures after that interrupted build; the workspace manifests correctly declare `edge_optimizer_core = { path = "../core" }`.
+
+Try a serialized rebuild after the current Cargo processes finish:
+
+```powershell
+cargo clean
+cargo build --workspace -j 1
+```
+
+If `LNK1102` persists, increase Windows virtual memory/pagefile or close memory-heavy applications, then rerun. Building with `-j 1` prevents several Rust components from competing for RAM during linking.
+
+I also checked `edge_optimizer_core`; its manifest/dependency setup is valid. The unused-import warnings in Macro are unrelated and non-blocking.
+
+
+[@designer](subagent://designer) make the UI and workflows intuitive. since the app is per gaming profile config. The User / UI flow is kinda messy. whenever switching to another profile, it should go back to the Dashboard (just letting know profile been switched).
+
+- a lot of services ain't connect to the Settings WINUI (crosshair, Macro execution engine, Priv. optimization engine and so on ) - connect all these.
+- In System tweak section, it showings mock up app in the "App to Close"
