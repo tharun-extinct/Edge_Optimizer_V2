@@ -6,9 +6,9 @@ Runner, WinUI 3, workers, and the broker communicate through versioned, bounded,
 
 ## Current verified status
 
-**Status:** Planned
+**Status:** Partial
 
-Current named-pipe communication uses Rust Serde/Bincode and fixed buffers. A state snapshot was added to the transitional protocol, but Protobuf, explicit framing, version rejection, and authenticated broker identity are not implemented.
+Current named-pipe communication uses Rust Serde/Bincode. A bounded C# compatibility codec now connects WinUI to Runner for state, saves, live process snapshots, cleanup intents, activation, and orchestration results. Runner accepts connections non-blockingly. Protobuf, authoritative generated bindings, explicit length framing, and authenticated broker identity are not implemented.
 
 ## Architecture dependencies
 

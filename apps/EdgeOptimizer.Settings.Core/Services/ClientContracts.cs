@@ -14,6 +14,7 @@ public interface IRunnerClient
     event EventHandler<RunnerSnapshot>? SnapshotReceived;
     event EventHandler<string>? StatusReceived;
     event EventHandler<IReadOnlyList<ProcessItem>>? ProcessSnapshotReceived;
+    event EventHandler<string?>? ActiveProfileChanged;
     event EventHandler<RunnerWindowCommand>? WindowCommandReceived;
 
     Task StartAsync(CancellationToken cancellationToken = default);

@@ -18,6 +18,7 @@ public sealed class TransitionalBincodeRunnerClient : IRunnerClient, IAsyncDispo
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private NamedPipeClientStream? _pipe;
     private CancellationTokenSource? _lifetime;
+    private string? _pendingActivation;
 
     public TransitionalBincodeRunnerClient(DispatcherQueue dispatcher) => _dispatcher = dispatcher;
 
@@ -26,6 +27,7 @@ public sealed class TransitionalBincodeRunnerClient : IRunnerClient, IAsyncDispo
     public event EventHandler<RunnerSnapshot>? SnapshotReceived;
     public event EventHandler<string>? StatusReceived;
     public event EventHandler<IReadOnlyList<ProcessItem>>? ProcessSnapshotReceived;
+    public event EventHandler<string?>? ActiveProfileChanged;
     public event EventHandler<RunnerWindowCommand>? WindowCommandReceived;
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -54,13 +56,16 @@ public sealed class TransitionalBincodeRunnerClient : IRunnerClient, IAsyncDispo
     public Task SetOverlayVisibilityAsync(bool visible, CancellationToken cancellationToken = default) =>
         SendAsync(writer => { writer.Write((uint)3); writer.Write(visible); }, cancellationToken);
 
-    public Task ActivateProfileAsync(ProfileWorkspace profile, CancellationToken cancellationToken = default) =>
-        SendOrchestrationAsync(writer =>
+    public Task ActivateProfileAsync(ProfileWorkspace profile, CancellationToken cancellationToken = default)
+    {
+        _pendingActivation = profile.Name;
+        return SendOrchestrationAsync(writer =>
         {
             writer.Write((uint)0); // SettingsToRunnerCommand::ActivateProfile
             BincodeCodec.WriteProfile(writer, profile);
             writer.Write((byte)0); // game_session_id: None
         }, cancellationToken);
+    }
 
     public Task RequestCleanupAsync(string cleanupKind, CancellationToken cancellationToken = default) =>
         SendOrchestrationAsync(writer =>
@@ -141,9 +146,13 @@ public sealed class TransitionalBincodeRunnerClient : IRunnerClient, IAsyncDispo
                 break;
             case 1:
                 var profileName = BincodeCodec.ReadString(reader);
+                Post(() => ActiveProfileChanged?.Invoke(this, profileName));
                 Post(() => StatusReceived?.Invoke(this, $"Runner activated {profileName}."));
                 break;
-            case 2: Post(() => StatusReceived?.Invoke(this, "Runner deactivated the current profile.")); break;
+            case 2:
+                Post(() => ActiveProfileChanged?.Invoke(this, null));
+                Post(() => StatusReceived?.Invoke(this, "Runner deactivated the current profile."));
+                break;
             case 3: Post(() => StatusReceived?.Invoke(this, "Runner changed overlay visibility.")); break;
             case 4:
             case 7: Post(() => WindowCommandReceived?.Invoke(this, RunnerWindowCommand.BringToFront)); break;
@@ -202,6 +211,12 @@ public sealed class TransitionalBincodeRunnerClient : IRunnerClient, IAsyncDispo
         BincodeCodec.SkipStringVector(reader);
         BincodeCodec.SkipStringVector(reader);
         Post(() => StatusReceived?.Invoke(this, $"{operation} {(success ? "completed" : "failed")}: {summary}"));
+        if (operation == "Optimization")
+        {
+            var activated = success ? _pendingActivation : null;
+            _pendingActivation = null;
+            if (success) Post(() => ActiveProfileChanged?.Invoke(this, activated));
+        }
     }
 
     private void Post(Action action)

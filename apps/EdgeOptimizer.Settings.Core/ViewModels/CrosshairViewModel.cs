@@ -12,7 +12,7 @@ public sealed class CrosshairViewModel : ObservableObject
     private readonly IFilePicker _filePicker;
     private readonly Func<Task> _saveAsync;
     private ProfileWorkspace? _profile;
-    private string _feedbackText = "Preview values are stored in memory only.";
+    private string _feedbackText = "Crosshair changes are profile-scoped and saved through Runner.";
 
     public CrosshairViewModel(IFilePicker filePicker, Func<Task>? saveAsync = null)
     {
@@ -113,7 +113,7 @@ public sealed class CrosshairViewModel : ObservableObject
         _profile.CrosshairImagePath = selectedPath;
         OnPropertyChanged(nameof(ImageName));
         OnPropertyChanged(nameof(ImagePath));
-        FeedbackText = "Image selected for preview. Managed asset storage is not connected yet.";
+        FeedbackText = "Image selected. Save changes to persist the path through Runner.";
     }
 
     private void RemoveImage()

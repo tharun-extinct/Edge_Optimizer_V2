@@ -16,6 +16,7 @@ use windows::Win32::{Foundation::*, Storage::FileSystem::*, System::Pipes::*};
 /// Named pipe path for IPC (Settings <-> Runner)
 #[allow(dead_code)]
 pub const PIPE_NAME: &str = r"\\.\pipe\EdgeOptimizerIPC";
+const MAX_SETTINGS_MESSAGE_BYTES: usize = 1024 * 1024;
 
 /// Named pipe path for Macro IPC (Settings <-> Macro)
 #[allow(dead_code)]
@@ -152,7 +153,7 @@ impl NamedPipeServer {
         if !self.connected.load(Ordering::Acquire) {
             return Ok(None);
         }
-        let mut buffer = [0u8; 8192];
+        let mut buffer = vec![0u8; MAX_SETTINGS_MESSAGE_BYTES];
         let mut bytes_read = 0u32;
 
         unsafe {
@@ -194,6 +195,9 @@ impl NamedPipeServer {
             anyhow::bail!("Settings is not connected");
         }
         let data = bincode::serialize(message).context("Failed to serialize TrayToGui message")?;
+        if data.len() > MAX_SETTINGS_MESSAGE_BYTES {
+            anyhow::bail!("Settings response exceeds 1 MiB");
+        }
 
         let mut bytes_written = 0u32;
 
@@ -337,7 +341,7 @@ impl NamedPipeClient {
 
     /// Try to receive a message (non-blocking)
     pub fn try_recv(&self) -> Result<Option<TrayToGui>> {
-        let mut buffer = [0u8; 8192];
+        let mut buffer = vec![0u8; MAX_SETTINGS_MESSAGE_BYTES];
         let mut bytes_read = 0u32;
 
         unsafe {

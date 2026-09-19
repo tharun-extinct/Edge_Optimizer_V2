@@ -8,7 +8,7 @@ Profiles and the last active profile survive restart in Runner-owned SQLite stat
 
 **Status:** Partial
 
-SQLite schema v2, the v1→v2 migration, legacy import, transactional profile/activation updates, previous-valid backup, Runner startup restoration, and Settings state snapshots are implemented. Rust tests were added but cannot be executed in the current environment because Cargo is unavailable.
+SQLite schema v2, the v1→v2 migration, legacy import, transactional profile/activation updates, previous-valid backup, Runner startup restoration, and Settings state snapshots are implemented. WinUI now hydrates and saves profile collections through Runner's transitional compatibility transport. Rust tests were added but cannot be executed in the current environment because Cargo is unavailable.
 
 ## Architecture dependencies
 
@@ -17,7 +17,7 @@ SQLite schema v2, the v1→v2 migration, legacy import, transactional profile/ac
 
 ## Feature-specific implications
 
-Runner is the only process that opens `state.db`. The active WinUI Settings client currently has no persistence transport; once IPC is implemented, Runner's snapshot is authoritative and every UI mutation is forwarded to Runner.
+Runner is the only process that opens `state.db`, and its snapshot is authoritative. WinUI currently forwards collection saves through the transitional Bincode compatibility transport; the generated Protobuf replacement remains required.
 
 ## Related blueprints
 

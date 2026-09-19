@@ -1,4 +1,7 @@
 using EdgeOptimizer.Settings.Core.ViewModels;
+using EdgeOptimizer.Settings.Core.Models;
+using EdgeOptimizer.Settings.Core.Services;
+using CommunityToolkit.Mvvm.Input;
 
 namespace EdgeOptimizer.Settings.Core.Tests;
 
@@ -67,6 +70,35 @@ public sealed class MainWindowViewModelTests
         // Verifies profile activation stays disabled until a Runner client reports a connection.
         Assert.False(CreateViewModel().ActivationEnabled);
         Assert.True(new MainWindowViewModel(new FakeFilePicker(null), new FakeRunnerClient(true)).ActivationEnabled);
+    }
+
+    [Fact]
+    public void RunnerSnapshotReplacesPreviewProfilesAndRestoresActivation()
+    {
+        // Verifies Runner hydration replaces placeholder data and marks the authoritative active profile.
+        var runner = new FakeRunnerClient(true);
+        var viewModel = new MainWindowViewModel(new FakeFilePicker(null), runner);
+        runner.RaiseSnapshot(new RunnerSnapshot(
+            new[] { new ProfileWorkspace("Hydrated", false), new ProfileWorkspace("Active", false) },
+            "Active",
+            true));
+
+        Assert.Equal(2, viewModel.Profiles.Count);
+        Assert.Equal("Active", viewModel.SelectedProfile?.Name);
+        Assert.True(viewModel.SelectedProfile?.IsActive);
+    }
+
+    [Fact]
+    public async Task ActivationSavesThenRequestsRunnerOrchestration()
+    {
+        // Verifies activation persists the current collection before asking Runner to start workers and optimization.
+        var runner = new FakeRunnerClient(true);
+        var viewModel = new MainWindowViewModel(new FakeFilePicker(null), runner);
+
+        await ((IAsyncRelayCommand)viewModel.ActivateProfileCommand).ExecuteAsync(null);
+
+        Assert.Equal(viewModel.Profiles.Count, runner.SavedProfiles.Count);
+        Assert.Same(viewModel.SelectedProfile, Assert.Single(runner.ActivatedProfiles));
     }
 
     private static MainWindowViewModel CreateViewModel() =>

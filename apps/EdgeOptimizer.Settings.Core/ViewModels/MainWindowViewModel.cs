@@ -40,6 +40,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _runnerClient.SnapshotReceived += (_, snapshot) => ApplySnapshot(snapshot);
         _runnerClient.StatusReceived += (_, status) => StatusMessage = status;
         _runnerClient.ProcessSnapshotReceived += (_, processes) => SystemTweaks.ApplyProcessSnapshot(processes);
+        _runnerClient.ActiveProfileChanged += (_, activeName) => ApplyActiveProfile(activeName);
 
         Profiles.Add(new ProfileWorkspace("Fortnite", true));
         Profiles.Add(new ProfileWorkspace("Valorant", false));
@@ -116,6 +117,12 @@ public sealed class MainWindowViewModel : ObservableObject
             profile.IsActive = string.Equals(profile.Name, snapshot.ActiveProfileName, StringComparison.OrdinalIgnoreCase);
         SelectedProfile = Profiles.FirstOrDefault(profile => profile.IsActive) ?? Profiles[0];
         StatusMessage = $"Loaded {snapshot.Profiles.Count} profile(s) from Runner.";
+    }
+
+    private void ApplyActiveProfile(string? activeName)
+    {
+        foreach (var profile in Profiles)
+            profile.IsActive = string.Equals(profile.Name, activeName, StringComparison.OrdinalIgnoreCase);
     }
 
     private void NewProfile()
@@ -195,7 +202,7 @@ internal static class ProfileWorkspaceCopy
         };
         copy.Macros.Clear();
         foreach (var macro in source.Macros)
-            copy.Macros.Add(new MacroDefinition(macro.Name, macro.Shortcut, macro.Steps.ToArray()) { IsEnabled = macro.IsEnabled, RepeatMode = macro.RepeatMode, RepeatCount = macro.RepeatCount, StopKey = macro.StopKey });
+            copy.Macros.Add(new MacroDefinition(macro.Name, macro.Shortcut, macro.Steps.Select(step => new MacroStep(step.Action, step.Value))) { IsEnabled = macro.IsEnabled, RepeatMode = macro.RepeatMode, RepeatCount = macro.RepeatCount, StopKey = macro.StopKey });
         copy.Processes.Clear();
         foreach (var process in source.Processes)
             copy.Processes.Add(new ProcessItem(process.Name, process.Cpu, process.Memory, process.IsSelected));

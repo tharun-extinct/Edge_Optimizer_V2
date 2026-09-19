@@ -12,7 +12,7 @@ public sealed class MacrosViewModel : ObservableObject
     private ProfileWorkspace? _profile;
     private MacroDefinition? _selectedMacro;
     private string _macroSearch = string.Empty;
-    private string _feedbackText = "Macro edits are stored in memory only.";
+    private string _feedbackText = "Macro edits are saved through Runner and applied on profile activation.";
 
     public MacrosViewModel(Func<Task>? saveAsync = null)
     {
@@ -105,7 +105,10 @@ public sealed class MacrosViewModel : ObservableObject
     private void DuplicateMacro()
     {
         if (SelectedMacro is null) return;
-        var duplicate = new MacroDefinition($"{SelectedMacro.Name} copy", "Unassigned", SelectedMacro.Steps.ToArray());
+        var duplicate = new MacroDefinition(
+            $"{SelectedMacro.Name} copy",
+            "Unassigned",
+            SelectedMacro.Steps.Select(step => new MacroStep(step.Action, step.Value)));
         Macros.Add(duplicate);
         SelectedMacro = duplicate;
         OnPropertyChanged(nameof(FilteredMacros));

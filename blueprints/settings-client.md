@@ -8,7 +8,7 @@ An on-demand, unprivileged WinUI client edits profiles and presents Runner state
 
 **Status:** Partial
 
-WinUI 3 is the active Settings UI and is launched on demand by Runner from the packaged `EdgeOptimizer.Settings.WinUI.exe`. It has a profile-scoped presentation shell, testable view-models, and preview implementations of Dashboard, Crosshair, Macros, and System Tweaks. Its editable state is intentionally memory-only, and orchestration actions remain disabled because generated IPC bindings and the Runner client are not implemented. A Windows CI job tests the UI-independent logic, compiles WinUI XAML, and publishes a self-contained client artifact. Runtime UI smoke automation remains planned.
+WinUI 3 is the active Settings UI and is launched on demand by Runner from the packaged `EdgeOptimizer.Settings.WinUI.exe`. It restores the full profile-scoped Dashboard, Crosshair, Macros, and System Tweaks surfaces and uses a transitional Bincode compatibility client to hydrate Runner state, save profile collections, request live processes and cleanup, and activate profiles. Runner's pipe accepts the client non-blockingly. A Windows CI job tests UI-independent logic, compiles WinUI XAML, and publishes a self-contained client artifact. Generated Protobuf bindings and runtime UI smoke automation remain planned.
 
 ## Architecture dependencies
 
@@ -41,12 +41,12 @@ WinUI 3 never owns durable state or privileged operations. It requests a snapsho
 ## Acceptance criteria
 
 - [ ] Build on .NET 10 LTS.
-- [ ] Hydrate profiles and active state from Runner.
-- [ ] Perform profile CRUD through versioned IPC.
+- [x] Hydrate profiles and active state from Runner through the transitional compatibility transport.
+- [x] Perform profile collection saves through Runner; generated versioned bindings remain planned.
 - [ ] Exit fully when the window closes.
 - [x] Runner launches the packaged WinUI Settings client.
-- [ ] Include WinUI 3 build and contract tests in CI.
+- [x] Include WinUI 3 build and logic tests in CI.
 
 ## Remaining gaps
 
-Runner hydration, generated protocol bindings, IPC transport, durable commands, and interactive Windows UI automation remain planned. GitHub Actions is the build/test authority because the local .NET 10 SDK is unavailable.
+Generated Protobuf bindings, golden cross-language fixtures, profile rename validation, safe macro recording/test playback, and interactive Windows UI automation remain planned. The Bincode compatibility client is transitional and must be removed after the shared generated contract lands. GitHub Actions is the build/test authority because the local .NET 10 SDK is unavailable.

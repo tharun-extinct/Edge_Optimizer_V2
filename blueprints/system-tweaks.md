@@ -10,7 +10,7 @@ A player can configure profile-scoped optimization options, understand their saf
 
 Code inspection on 2026-09-05 confirms Rust profile storage for selected process names and a fan-speed flag, process-name normalization and protected-name tests, Runner-to-Engine command routing with fake-operation tests, and transitional Recycle Bin and browser-cache commands. The WinUI preview provides profile-scoped process selection, filtering, fan and cleanup toggles, selection totals, and restore-default behavior with unit tests.
 
-The WinUI values are memory-only and leave the process list empty until Runner supplies an authoritative snapshot. Its Recycle Bin and browser-cache toggles do not exist in the Rust profile contract. `fan_speed_max` is stored but is not applied by Engine command dispatch. The transitional EngineSvc performs cleanup in its SYSTEM environment, while the target architecture requires user-specific cleanup in the verified interactive-user context. PID-level safety validation is not implemented.
+WinUI saves supported profile fields through Runner, requests a live read-only process snapshot, and sends explicit cleanup intents through Runner. Recycle Bin and browser-cache selection toggles still do not exist in the Rust profile contract. `fan_speed_max` is stored but is not applied by Engine command dispatch. The transitional EngineSvc performs cleanup in its SYSTEM environment, while the target architecture requires user-specific cleanup in the verified interactive-user context. PID-level safety validation is not implemented.
 
 ## Architecture dependencies
 
@@ -68,7 +68,7 @@ Partial results remain visible by operation. Failure of cleanup, process termina
 - `crates/core/src/engine_commands.rs` — injectable Engine command routing and fake-operation tests.
 - `crates/runner/src/main.rs` — activation, cleanup routing, persistence, and Engine state transitions.
 - `crates/engine_service/src/main.rs` — transitional process and cleanup execution.
-- `apps/EdgeOptimizer.Settings.WinUI/ViewModels/SystemTweaksViewModel.cs` — memory-only process and toggle preview logic.
+- `apps/EdgeOptimizer.Settings.Core/ViewModels/SystemTweaksViewModel.cs` — profile selections, live process presentation, and cleanup intent logic.
 - `tests/EdgeOptimizer.Settings.Core.Tests/SystemTweaksViewModelTests.cs` — filtering, totals, safe defaults, and profile isolation tests.
 
 ## Acceptance criteria
@@ -77,7 +77,8 @@ Partial results remain visible by operation. Failure of cleanup, process termina
 - [x] Normalize protected process names across casing, whitespace, and `.exe` forms.
 - [x] Route process and cleanup intents through injectable Engine decision logic for safe hosted tests.
 - [x] Keep WinUI process/toggle preview state independent between profiles and restore safe defaults deterministically.
-- [ ] Replace fixture processes with a Runner-provided snapshot and structured protected/ambiguous selection reasons.
+- [x] Replace fixture processes with a Runner-provided read-only snapshot.
+- [ ] Add structured protected/ambiguous selection reasons.
 - [ ] Align WinUI 3 and Rust profile contracts for every supported tweak; do not imply persistence for preview-only toggles.
 - [ ] Define supported fan-policy hardware, authorization, apply, rollback, and unavailable behavior before enabling it.
 - [ ] Classify each operation by execution context and move user cleanup out of the SYSTEM environment.
