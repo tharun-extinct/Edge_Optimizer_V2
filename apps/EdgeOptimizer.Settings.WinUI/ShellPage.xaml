@@ -1,19 +1,64 @@
-<Page x:Class="EdgeOptimizer.Settings.WinUI.ShellPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:models="using:EdgeOptimizer.Settings.Core.Models">
-  <NavigationView x:Name="Navigation" IsBackButtonVisible="Collapsed" IsSettingsVisible="False" PaneDisplayMode="Left" OpenPaneLength="280" SelectionChanged="OnNavigationChanged">
-    <NavigationView.MenuItems>
-      <NavigationViewItem Content="Dashboard" Tag="Dashboard" AutomationProperties.AutomationId="Navigation.Dashboard"><NavigationViewItem.Icon><SymbolIcon Symbol="Home"/></NavigationViewItem.Icon></NavigationViewItem>
-      <NavigationViewItem Content="Crosshair" Tag="Crosshair" AutomationProperties.AutomationId="Navigation.Crosshair"><NavigationViewItem.Icon><SymbolIcon Symbol="Target"/></NavigationViewItem.Icon></NavigationViewItem>
-      <NavigationViewItem Content="Macros" Tag="Macros" AutomationProperties.AutomationId="Navigation.Macros"><NavigationViewItem.Icon><SymbolIcon Symbol="Keyboard"/></NavigationViewItem.Icon></NavigationViewItem>
-      <NavigationViewItem Content="System Tweaks" Tag="SystemTweaks" AutomationProperties.AutomationId="Navigation.SystemTweaks"><NavigationViewItem.Icon><SymbolIcon Symbol="Repair"/></NavigationViewItem.Icon></NavigationViewItem>
-    </NavigationView.MenuItems>
-    <NavigationView.PaneFooter>
-      <StackPanel Spacing="8" Padding="12"><TextBlock Text="YOUR PROFILES" Style="{StaticResource CaptionTextBlockStyle}"/><ListView ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" AutomationProperties.Name="Profiles" AutomationProperties.AutomationId="Profiles.List" MaxHeight="320"><ListView.ItemTemplate><DataTemplate x:DataType="models:ProfileWorkspace"><TextBlock Text="{x:Bind Name}"/></DataTemplate></ListView.ItemTemplate></ListView><Button Content="New profile" Command="{Binding NewProfileCommand}" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="Profiles.New"/></StackPanel>
-    </NavigationView.PaneFooter>
-    <Grid><Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-      <Grid x:Name="TitleBarDragRegion" Grid.Row="0" Background="Transparent"/>
-      <Grid Grid.Row="1" Margin="28,12,28,18"><StackPanel><TextBlock Text="{Binding CurrentPageLabel}" Style="{StaticResource TitleTextBlockStyle}"/><TextBlock Text="{Binding SelectedProfile.Name}" Opacity="0.72"/></StackPanel><Button Content="Activate profile" HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}" IsEnabled="{Binding ActivationEnabled}" AutomationProperties.AutomationId="Profile.Activate"/></Grid>
-      <ContentControl x:Name="PageHost" Grid.Row="2" Margin="28,0,28,16"/>
-      <InfoBar Grid.Row="3" IsOpen="True" IsClosable="False" Severity="Informational" Message="{Binding StatusMessage}"/>
+<Page x:Class="EdgeOptimizer.Settings.WinUI.ShellPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:models="using:EdgeOptimizer.Settings.Core.Models"
+      Background="{ThemeResource AppCanvasBrush}">
+  <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="290"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+
+    <Border Grid.Column="0" Background="{ThemeResource AppSidebarBrush}" BorderBrush="{ThemeResource AppStrokeBrush}" BorderThickness="0,0,1,0">
+      <Grid Padding="16,14,16,16">
+        <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid x:Name="TitleBarDragRegion">
+          <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <FontIcon Glyph="&#xE72B;" FontSize="26" Foreground="{ThemeResource AppAccentBrush}"/>
+            <TextBlock Text="EDGE OPTIMIZER" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="1" Margin="0,22,0,0">
+          <Button Style="{StaticResource SidebarButtonStyle}" Tag="Dashboard" Click="OnNavigateClick" AutomationProperties.AutomationId="Navigation.Dashboard"><StackPanel Orientation="Horizontal" Spacing="14"><FontIcon Glyph="&#xE80F;"/><TextBlock Text="Dashboard"/></StackPanel></Button>
+          <Button Style="{StaticResource SidebarButtonStyle}" Tag="Crosshair" Click="OnNavigateClick" AutomationProperties.AutomationId="Navigation.Crosshair"><StackPanel Orientation="Horizontal" Spacing="14"><FontIcon Glyph="&#xF272;"/><TextBlock Text="Crosshair"/></StackPanel></Button>
+          <Button Style="{StaticResource SidebarButtonStyle}" Tag="Macros" Click="OnNavigateClick" AutomationProperties.AutomationId="Navigation.Macros"><StackPanel Orientation="Horizontal" Spacing="14"><FontIcon Glyph="&#xE765;"/><TextBlock Text="Macros"/></StackPanel></Button>
+          <Button Style="{StaticResource SidebarButtonStyle}" Tag="SystemTweaks" Click="OnNavigateClick" AutomationProperties.AutomationId="Navigation.SystemTweaks"><StackPanel Orientation="Horizontal" Spacing="14"><FontIcon Glyph="&#xE90F;"/><TextBlock Text="System Tweaks"/></StackPanel></Button>
+        </StackPanel>
+
+        <TextBlock Grid.Row="2" Text="YOUR PROFILES" Style="{StaticResource MutedTextStyle}" FontSize="12" Margin="12,30,0,10"/>
+        <Grid Grid.Row="3">
+          <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <ListView ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" Background="Transparent" BorderThickness="0" AutomationProperties.AutomationId="Profiles.List">
+            <ListView.ItemTemplate>
+              <DataTemplate x:DataType="models:ProfileWorkspace">
+                <Grid MinHeight="42" Padding="4,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Visibility="{x:Bind IsActive, Mode=OneWay}"><Ellipse Width="7" Height="7" Fill="{ThemeResource AppSuccessBrush}"/><TextBlock Text="ACTIVE" Foreground="{ThemeResource AppSuccessBrush}" FontSize="11"/></StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListView.ItemTemplate>
+          </ListView>
+          <Button Grid.Row="1" Content="＋  New profile" Command="{Binding NewProfileCommand}" Style="{StaticResource OutlineButtonStyle}" HorizontalAlignment="Stretch" Margin="0,12,0,0" AutomationProperties.AutomationId="Profiles.New"/>
+        </Grid>
+
+        <Grid Grid.Row="4" Margin="8,22,8,0">
+          <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="?" Width="34" Height="34"/><Button Content="i" Width="34" Height="34"/></StackPanel>
+          <TextBlock Text="v1.0.0" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource MutedTextStyle}"/>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Column="1" Padding="34,12,34,26">
+      <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <Grid x:Name="MainTitleBarDragRegion" Grid.Row="0" Background="Transparent"/>
+      <Grid Grid.Row="1" Margin="2,10,2,20">
+        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding SelectedProfile.Name}" Foreground="{ThemeResource AppAccentBrush}"/><TextBlock Text="/" Style="{StaticResource MutedTextStyle}"/><TextBlock Text="{Binding CurrentPageLabel}"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,8,0,0"><TextBlock Text="{Binding CurrentPageTitle}" Style="{StaticResource PageTitleStyle}"/><Border Background="#0E2B1A" BorderBrush="{ThemeResource AppSuccessBrush}" BorderThickness="1" CornerRadius="16" Padding="12,5"><StackPanel Orientation="Horizontal" Spacing="7"><Ellipse Width="7" Height="7" Fill="{ThemeResource AppSuccessBrush}"/><TextBlock Text="Runner linked"/></StackPanel></Border></StackPanel>
+        </StackPanel>
+        <Button Grid.Column="1" Content="Activate profile" Command="{Binding ActivateProfileCommand}" Style="{StaticResource AccentButtonStyle}" MinWidth="150" AutomationProperties.AutomationId="Profile.Activate"/>
+      </Grid>
+      <ContentControl x:Name="PageHost" Grid.Row="2"/>
+      <Border Grid.Row="3" Background="{ThemeResource AppCardBrush}" BorderBrush="{ThemeResource AppStrokeBrush}" BorderThickness="1" CornerRadius="7" Padding="12,8" Margin="2,14,2,0"><TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedTextStyle}" TextTrimming="CharacterEllipsis"/></Border>
     </Grid>
-  </NavigationView>
+  </Grid>
 </Page>

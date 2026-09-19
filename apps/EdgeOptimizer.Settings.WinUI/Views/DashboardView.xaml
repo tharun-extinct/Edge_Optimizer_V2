@@ -1,12 +1,32 @@
 <UserControl x:Class="EdgeOptimizer.Settings.WinUI.Views.DashboardView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <ScrollViewer><StackPanel Spacing="16">
-    <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-      <Border Style="{StaticResource CardStyle}"><StackPanel><TextBlock Text="Apps selected"/><TextBlock Text="{Binding SelectedAppCount}" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
-      <Border Grid.Column="1" Style="{StaticResource CardStyle}"><StackPanel><TextBlock Text="Crosshair"/><TextBlock Text="{Binding CrosshairStatus}" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
-      <Border Grid.Column="2" Style="{StaticResource CardStyle}"><StackPanel><TextBlock Text="Macro trigger"/><TextBlock Text="{Binding MacroShortcut}" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
-      <Border Grid.Column="3" Style="{StaticResource CardStyle}"><StackPanel><TextBlock Text="Readiness"/><TextBlock Text="{Binding ReadinessLabel}" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
-    </Grid>
-    <Border Style="{StaticResource CardStyle}"><StackPanel Spacing="16"><TextBlock Text="Ready to optimize" Style="{StaticResource SectionTitleStyle}"/><ProgressBar Value="72"/><Button Content="Optimize &amp; launch" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" ToolTipService.ToolTip="Runner IPC is not connected." AutomationProperties.AutomationId="Dashboard.Optimize"/></StackPanel></Border>
-    <Border Style="{StaticResource CardStyle}"><StackPanel Spacing="12"><TextBlock Text="Quick actions" Style="{StaticResource SectionTitleStyle}"/><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="Open crosshair" Command="{Binding NavigateCommand}" CommandParameter="Crosshair"/><Button Content="Edit macro" Command="{Binding NavigateCommand}" CommandParameter="Macros"/><Button Content="System tweaks" Command="{Binding NavigateCommand}" CommandParameter="SystemTweaks"/></StackPanel></StackPanel></Border>
-  </StackPanel></ScrollViewer>
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="16">
+      <Grid ColumnSpacing="14"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+        <Border Style="{StaticResource CardStyle}"><StackPanel><StackPanel Orientation="Horizontal" Spacing="10"><FontIcon Glyph="&#xE71D;" Foreground="{ThemeResource AppAccentBrush}"/><TextBlock Text="Apps selected" Style="{StaticResource MutedTextStyle}"/></StackPanel><TextBlock Text="{Binding SelectedAppCount}" Style="{StaticResource MetricValueStyle}"/><TextBlock Text="close on activation" Style="{StaticResource MutedTextStyle}" FontSize="12"/></StackPanel></Border>
+        <Border Grid.Column="1" Style="{StaticResource CardStyle}"><StackPanel><StackPanel Orientation="Horizontal" Spacing="10"><FontIcon Glyph="&#xF272;" Foreground="{ThemeResource AppAccentBrush}"/><TextBlock Text="Crosshair" Style="{StaticResource MutedTextStyle}"/></StackPanel><TextBlock Text="{Binding CrosshairStatus}" Style="{StaticResource MetricValueStyle}"/><TextBlock Text="overlay state" Style="{StaticResource MutedTextStyle}" FontSize="12"/></StackPanel></Border>
+        <Border Grid.Column="2" Style="{StaticResource CardStyle}"><StackPanel><StackPanel Orientation="Horizontal" Spacing="10"><FontIcon Glyph="&#xE765;" Foreground="{ThemeResource AppAccentBrush}"/><TextBlock Text="Macro trigger" Style="{StaticResource MutedTextStyle}"/></StackPanel><TextBlock Text="{Binding MacroShortcut}" Style="{StaticResource MetricValueStyle}" FontSize="18"/><TextBlock Text="active shortcut" Style="{StaticResource MutedTextStyle}" FontSize="12"/></StackPanel></Border>
+        <Border Grid.Column="3" Style="{StaticResource CardStyle}"><StackPanel><StackPanel Orientation="Horizontal" Spacing="10"><FontIcon Glyph="&#xE73E;" Foreground="{ThemeResource AppSuccessBrush}"/><TextBlock Text="Readiness" Style="{StaticResource MutedTextStyle}"/></StackPanel><TextBlock Text="{Binding ReadinessLabel}" Style="{StaticResource MetricValueStyle}"/><TextBlock Text="profile validation" Style="{StaticResource MutedTextStyle}" FontSize="12"/></StackPanel></Border>
+      </Grid>
+
+      <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="1.3*"/><ColumnDefinition/></Grid.ColumnDefinitions>
+        <Border Style="{StaticResource CardStyle}">
+          <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <StackPanel><TextBlock Text="Ready to optimize" Style="{StaticResource SectionTitleStyle}"/><TextBlock Text="Review this profile, then activate it through Runner." Style="{StaticResource MutedTextStyle}" Margin="0,6,0,0"/></StackPanel>
+            <StackPanel Grid.Row="1" Margin="0,28,0,24" Spacing="14">
+              <Grid><TextBlock Text="Profile configuration"/><TextBlock Text="72%" HorizontalAlignment="Right" Foreground="{ThemeResource AppAccentBrush}"/></Grid><ProgressBar Value="72" Height="7"/>
+              <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><Border Style="{StaticResource InsetStyle}"><StackPanel><TextBlock Text="Optimization plan" FontWeight="SemiBold"/><TextBlock Text="Close selected apps, apply policy, then launch the configured overlay." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,6,0,0"/></StackPanel></Border><Border Grid.Column="1" Style="{StaticResource InsetStyle}"><StackPanel><TextBlock Text="Safety policy" FontWeight="SemiBold"/><TextBlock Text="Protected processes remain excluded at the Runner and engine boundaries." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,6,0,0"/></StackPanel></Border></Grid>
+            </StackPanel>
+            <Button Grid.Row="2" Content="Optimize &amp; launch" HorizontalAlignment="Left" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" ToolTipService.ToolTip="Use Activate profile in the page header." AutomationProperties.AutomationId="Dashboard.Optimize"/>
+          </Grid>
+        </Border>
+        <Border Grid.Column="1" Style="{StaticResource CardStyle}">
+          <StackPanel Spacing="12"><TextBlock Text="Quick actions" Style="{StaticResource SectionTitleStyle}"/><TextBlock Text="Jump directly into this profile's configuration." Style="{StaticResource MutedTextStyle}"/>
+            <Button Command="{Binding NavigateCommand}" CommandParameter="Crosshair" HorizontalAlignment="Stretch"><Grid Width="300"><StackPanel Orientation="Horizontal" Spacing="12"><FontIcon Glyph="&#xF272;"/><TextBlock Text="Configure crosshair"/></StackPanel><FontIcon Glyph="&#xE76C;" HorizontalAlignment="Right"/></Grid></Button>
+            <Button Command="{Binding NavigateCommand}" CommandParameter="Macros" HorizontalAlignment="Stretch"><Grid Width="300"><StackPanel Orientation="Horizontal" Spacing="12"><FontIcon Glyph="&#xE765;"/><TextBlock Text="Edit macros"/></StackPanel><FontIcon Glyph="&#xE76C;" HorizontalAlignment="Right"/></Grid></Button>
+            <Button Command="{Binding NavigateCommand}" CommandParameter="SystemTweaks" HorizontalAlignment="Stretch"><Grid Width="300"><StackPanel Orientation="Horizontal" Spacing="12"><FontIcon Glyph="&#xE90F;"/><TextBlock Text="Review system tweaks"/></StackPanel><FontIcon Glyph="&#xE76C;" HorizontalAlignment="Right"/></Grid></Button>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>

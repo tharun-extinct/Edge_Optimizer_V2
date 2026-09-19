@@ -18,6 +18,7 @@ pub mod image_picker;
 pub mod input_recorder;
 pub mod ipc;
 pub mod macro_config;
+pub mod macro_worker;
 pub mod orchestration;
 pub mod process;
 pub mod profile;

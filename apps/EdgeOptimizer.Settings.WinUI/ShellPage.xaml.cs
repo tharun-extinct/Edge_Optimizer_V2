@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using EdgeOptimizer.Settings.Core.ViewModels;
 using EdgeOptimizer.Settings.WinUI.Views;
 using Microsoft.UI.Xaml;
@@ -15,19 +16,29 @@ public sealed partial class ShellPage : Page
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
-        Navigation.SelectedItem = Navigation.MenuItems[0];
-        Show("Dashboard");
+        _viewModel.PropertyChanged += ViewModelPropertyChanged;
+        RenderPage(_viewModel.CurrentPageLabel);
     }
 
-    private void OnNavigationChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    private void OnNavigateClick(object sender, RoutedEventArgs args)
     {
-        if (args.SelectedItemContainer?.Tag is string target) Show(target);
+        if (sender is Button { Tag: string target }) _viewModel.NavigateTo(target);
     }
 
-    private void Show(string target)
+    private void ViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        _viewModel.NavigateTo(target);
-        FrameworkElement page = target switch { "Crosshair" => new CrosshairView(), "Macros" => new MacrosView(), "SystemTweaks" => new SystemTweaksView(), _ => new DashboardView() };
+        if (args.PropertyName == nameof(MainWindowViewModel.CurrentPageLabel)) RenderPage(_viewModel.CurrentPageLabel);
+    }
+
+    private void RenderPage(string target)
+    {
+        FrameworkElement page = target switch
+        {
+            "Crosshair" => new CrosshairView(),
+            "Macros" => new MacrosView(),
+            "System Tweaks" => new SystemTweaksView(),
+            _ => new DashboardView(),
+        };
         page.DataContext = _viewModel.CurrentPage;
         PageHost.Content = page;
     }

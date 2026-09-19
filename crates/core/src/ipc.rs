@@ -2,6 +2,7 @@ use crate::orchestration::{Envelope, RunnerToSettingsEvent, SettingsToRunnerComm
 /// Inter-Process Communication between Settings and Runner processes
 /// Uses Windows Named Pipes for cross-process communication
 use crate::profile::Profile;
+use crate::macro_config::MacroConfig;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::ptr::null_mut;
@@ -381,6 +382,14 @@ pub struct GuiChannels {
 pub struct TrayChannels {
     pub from_gui: Receiver<GuiToTray>,
     pub to_gui: Sender<TrayToGui>,
+}
+
+/// Transitional Runner-to-Macro worker protocol. Runner owns this worker.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RunnerToMacroCommand {
+    ConfigUpdated(MacroConfig),
+    SetEnabled(bool),
+    Shutdown,
 }
 
 #[cfg(test)]

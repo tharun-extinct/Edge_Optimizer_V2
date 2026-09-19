@@ -71,6 +71,7 @@ public sealed class CrosshairViewModel : ObservableObject
     }
 
     public string ImageName => _profile?.CrosshairImageName ?? "No image selected";
+    public string? ImagePath => _profile?.CrosshairImagePath;
     public string OffsetSummary => $"Offset X  {XOffset}  •  Y  {YOffset}";
     public string FeedbackText { get => _feedbackText; private set => SetProperty(ref _feedbackText, value); }
 
@@ -81,6 +82,7 @@ public sealed class CrosshairViewModel : ObservableObject
         OnPropertyChanged(nameof(YOffset));
         OnPropertyChanged(nameof(OverlayEnabled));
         OnPropertyChanged(nameof(ImageName));
+        OnPropertyChanged(nameof(ImagePath));
         OnPropertyChanged(nameof(OffsetSummary));
     }
 
@@ -110,6 +112,7 @@ public sealed class CrosshairViewModel : ObservableObject
         _profile.CrosshairImageName = Path.GetFileName(selectedPath);
         _profile.CrosshairImagePath = selectedPath;
         OnPropertyChanged(nameof(ImageName));
+        OnPropertyChanged(nameof(ImagePath));
         FeedbackText = "Image selected for preview. Managed asset storage is not connected yet.";
     }
 
@@ -119,6 +122,7 @@ public sealed class CrosshairViewModel : ObservableObject
         _profile.CrosshairImageName = "No image selected";
         _profile.CrosshairImagePath = null;
         OnPropertyChanged(nameof(ImageName));
+        OnPropertyChanged(nameof(ImagePath));
         FeedbackText = "Crosshair image removed from preview state.";
     }
 
@@ -135,6 +139,7 @@ public sealed class CrosshairViewModel : ObservableObject
         _profile.CrosshairImageName = "dot-crosshair.png";
         _profile.CrosshairImagePath = null;
         OnPropertyChanged(nameof(ImageName));
+        OnPropertyChanged(nameof(ImagePath));
         Center();
         FeedbackText = "Crosshair preview reset.";
     }
