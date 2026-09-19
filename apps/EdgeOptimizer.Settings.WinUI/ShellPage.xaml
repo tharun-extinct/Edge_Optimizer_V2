@@ -53,7 +53,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding SelectedProfile.Name}" Foreground="{ThemeResource AppAccentBrush}"/><TextBlock Text="/" Style="{StaticResource MutedTextStyle}"/><TextBlock Text="{Binding CurrentPageLabel}"/></StackPanel>
-          <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,8,0,0"><TextBlock Text="{Binding CurrentPageTitle}" Style="{StaticResource PageTitleStyle}"/><Border Background="#0E2B1A" BorderBrush="{ThemeResource AppSuccessBrush}" BorderThickness="1" CornerRadius="16" Padding="12,5"><StackPanel Orientation="Horizontal" Spacing="7"><Ellipse Width="7" Height="7" Fill="{ThemeResource AppSuccessBrush}"/><TextBlock Text="Runner linked"/></StackPanel></Border></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,8,0,0"><TextBlock Text="{Binding CurrentPageTitle}" Style="{StaticResource PageTitleStyle}"/><Border Background="#0E2B1A" BorderBrush="{ThemeResource AppSuccessBrush}" BorderThickness="1" CornerRadius="16" Padding="12,5"><StackPanel Orientation="Horizontal" Spacing="7"><Ellipse Width="7" Height="7" Fill="{ThemeResource AppSuccessBrush}"/><TextBlock Text="{Binding RunnerStatusLabel}"/></StackPanel></Border></StackPanel>
         </StackPanel>
         <Button Grid.Column="1" Content="Activate profile" Command="{Binding ActivateProfileCommand}" Style="{StaticResource AccentButtonStyle}" MinWidth="150" AutomationProperties.AutomationId="Profile.Activate"/>
       </Grid>

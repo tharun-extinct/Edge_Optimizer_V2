@@ -36,6 +36,8 @@ pub enum GuiToTray {
     Shutdown,
     /// Versioned orchestration command envelope
     Orchestration(Envelope<SettingsToRunnerCommand>),
+    /// Request a read-only process list for the System Tweaks UI.
+    RequestProcessSnapshot,
 }
 
 /// Messages from Runner to Settings
@@ -65,6 +67,15 @@ pub enum TrayToGui {
     Exit,
     /// Versioned orchestration event envelope
     OrchestrationEvent(Envelope<RunnerToSettingsEvent>),
+    /// Read-only process metrics; process selection remains profile state.
+    ProcessSnapshot(Vec<ProcessSnapshotEntry>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessSnapshotEntry {
+    pub name: String,
+    pub cpu_percent: f32,
+    pub memory_kb: u64,
 }
 
 /// Named Pipe Server (Runner side)

@@ -10,7 +10,7 @@ A player can create profile-scoped keyboard and mouse action sequences, assign n
 
 Code inspection on 2026-09-05 confirms Rust domain types for actions, shortcuts, repeat modes, validation, and profile serialization, plus a standalone worker containing global-hotkey and input-simulation code. The WinUI preview supports profile selection, case-insensitive search, create, duplicate, delete, and add/remove-step behavior with unit tests.
 
-The WinUI editor is memory-only and does not capture shortcuts or recording. The worker currently exposes a private Bincode pipe directly to Settings, does not sit behind Runner, and its hotkey-registration refresh condition is a permanent placeholder, so received configurations are not registered for playback. `UntilKeyPressed` currently executes once, and cancellation, safe input release, acknowledgements, and deterministic execution tests are absent.
+The WinUI editor saves macro names, shortcuts, actions, enablement, and repeat configuration as Runner-owned profile state through the transitional compatibility pipe. Runner starts the unprivileged Macro worker on successful activation and supplies the active configuration; the worker now refreshes global-hotkey registrations when that configuration changes. Recording and test playback remain unavailable. `UntilKeyPressed` still executes once, and cancellation, safe input release, acknowledgements, and deterministic execution tests are absent.
 
 ## Architecture dependencies
 
@@ -54,7 +54,8 @@ Malformed actions, shortcut conflicts, worker failure, or cancellation must fail
 - `crates/core/src/input_recorder.rs` — transitional Windows keyboard recording implementation.
 - `crates/core/src/gui/macro_editor.rs` — transitional Iced macro editor.
 - `crates/macro/src` — standalone worker, hotkey listener, input hooks/senders, executor, and private IPC implementation.
-- `apps/EdgeOptimizer.Settings.WinUI/ViewModels/MacrosViewModel.cs` — memory-only macro collection and sequence editing.
+- `apps/EdgeOptimizer.Settings.Core/ViewModels/MacrosViewModel.cs` — profile-scoped macro collection and sequence editing.
+- `crates/core/src/macro_worker.rs` — transitional Runner-owned worker startup and configuration.
 - `tests/EdgeOptimizer.Settings.Core.Tests/MacrosViewModelTests.cs` — filtering, selection, CRUD, duplication, and step mutation tests.
 
 ## Acceptance criteria
@@ -63,9 +64,10 @@ Malformed actions, shortcut conflicts, worker failure, or cancellation must fail
 - [x] Validate non-empty macro names, action presence, basic shortcut shape, and case-insensitive name uniqueness.
 - [x] Keep WinUI macro selection valid across create, duplicate, and delete preview operations.
 - [x] Edit only the selected profile's preview collection.
-- [ ] Make Runner the sole owner of Macro worker startup, configuration, cancellation, and shutdown.
+- [x] Make Runner the owner of Macro worker startup, activation-time configuration, and shutdown.
+- [ ] Add cancellation and live update commands to the versioned worker contract.
 - [ ] Generate shared commands/events for configuration, recording, playback, cancellation, acknowledgement, errors, and worker disconnects.
-- [ ] Register and unregister shortcuts when the active configuration changes.
+- [x] Register and unregister shortcuts when the active configuration changes.
 - [ ] Reject shortcut conflicts and invalid repeat counts, stop keys, delays, coordinates, and unsupported keys.
 - [ ] Implement true finite-repeat, until-key, and cancellation behavior with guaranteed key/button release.
 - [ ] Prevent editing transitions that conflict with recording or playback.
@@ -74,4 +76,4 @@ Malformed actions, shortcut conflicts, worker failure, or cancellation must fail
 
 ## Remaining gaps
 
-Runner ownership, generated IPC, working hotkey refresh, WinUI 3 recording and shortcut capture, cancellation, complete repeat semantics, conflict validation, safe input cleanup, and deterministic worker tests remain planned. The current direct Settings-to-worker pipe conflicts with the target component boundary and is transitional.
+Generated IPC, WinUI recording/capture, cancellation, complete repeat semantics, conflict validation, safe input cleanup, acknowledgements, and deterministic worker tests remain planned. Runner currently uses the worker's transitional Bincode pipe; it must be replaced by generated versioned messages.

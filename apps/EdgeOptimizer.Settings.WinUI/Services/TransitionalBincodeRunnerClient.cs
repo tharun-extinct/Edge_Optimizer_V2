@@ -25,6 +25,7 @@ public sealed class TransitionalBincodeRunnerClient : IRunnerClient, IAsyncDispo
     public event EventHandler<bool>? ConnectionChanged;
     public event EventHandler<RunnerSnapshot>? SnapshotReceived;
     public event EventHandler<string>? StatusReceived;
+    public event EventHandler<IReadOnlyList<ProcessItem>>? ProcessSnapshotReceived;
     public event EventHandler<RunnerWindowCommand>? WindowCommandReceived;
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -67,6 +68,9 @@ public sealed class TransitionalBincodeRunnerClient : IRunnerClient, IAsyncDispo
             writer.Write((uint)3); // SettingsToRunnerCommand::RequestCleanup
             writer.Write(cleanupKind.Equals("browser-cache", StringComparison.OrdinalIgnoreCase) ? 1u : 0u);
         }, cancellationToken);
+
+    public Task RequestProcessSnapshotAsync(CancellationToken cancellationToken = default) =>
+        SendAsync(writer => writer.Write((uint)6), cancellationToken);
 
     private Task SendOrchestrationAsync(Action<BinaryWriter> writePayload, CancellationToken cancellationToken)
     {
@@ -147,6 +151,18 @@ public sealed class TransitionalBincodeRunnerClient : IRunnerClient, IAsyncDispo
             case 6: Post(() => WindowCommandReceived?.Invoke(this, RunnerWindowCommand.Hide)); break;
             case 8: Post(() => WindowCommandReceived?.Invoke(this, RunnerWindowCommand.Exit)); break;
             case 9: ReadOrchestrationEvent(reader); break;
+            case 10:
+                var processCount = checked((int)reader.ReadUInt64());
+                var processes = new List<ProcessItem>(processCount);
+                for (var index = 0; index < processCount; index++)
+                {
+                    var name = BincodeCodec.ReadString(reader);
+                    var cpu = reader.ReadSingle();
+                    var memoryKb = reader.ReadUInt64();
+                    processes.Add(new ProcessItem(name, $"{cpu:F1}%", $"{memoryKb / 1024d:F1} MB", false));
+                }
+                Post(() => ProcessSnapshotReceived?.Invoke(this, processes));
+                break;
             default: throw new InvalidDataException("Runner sent an unknown response.");
         }
     }

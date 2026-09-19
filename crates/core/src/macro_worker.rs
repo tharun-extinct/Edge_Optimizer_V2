@@ -24,10 +24,17 @@ impl MacroWorkerHandle {
             anyhow::bail!("Macro worker not found at {:?}", executable);
         }
 
-        let child = Command::new(&executable)
+        let mut child = Command::new(&executable)
             .spawn()
             .with_context(|| format!("failed to start {:?}", executable))?;
-        let pipe_handle = connect_with_timeout(Duration::from_secs(3))?;
+        let pipe_handle = match connect_with_timeout(Duration::from_secs(3)) {
+            Ok(handle) => handle,
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(error);
+            }
+        };
         let handle = Self { child, pipe_handle };
         handle.send(&RunnerToMacroCommand::ConfigUpdated(config))?;
         handle.send(&RunnerToMacroCommand::SetEnabled(true))?;

@@ -6,7 +6,7 @@ This document defines cross-cutting contracts for the iterative architecture mig
 
 ## Component boundaries
 
-- **Settings UI:** an unprivileged, on-demand WinUI presentation client. It is packaged beside Runner as `EdgeOptimizer.Settings.WinUI.exe`. Runner starts it on demand; its Runner IPC integration remains planned.
+- **Settings UI:** an unprivileged, on-demand WinUI presentation client. It is packaged beside Runner as `EdgeOptimizer.Settings.WinUI.exe`. Runner starts it on demand; a transitional Bincode compatibility client currently restores hydration, profile saves, process snapshots, cleanup intents, and activation while the generated Protobuf contract remains planned.
 - **Runner:** the per-user startup agent, tray owner, orchestration authority, process owner, and sole durable-state owner.
 - **Crosshair and Macro workers:** unprivileged native workers started and stopped by Runner.
 - **Privileged Broker:** a minimal Windows SCM service that performs only allowlisted machine-level operations requested by an authenticated Runner. The current scheduled-task EngineSvc is transitional.

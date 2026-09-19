@@ -467,6 +467,9 @@ pub fn run_tray_flyout_thread(
                     GuiToTray::Orchestration(_) => {
                         // New orchestration protocol is handled by Runner in current architecture
                     }
+                    GuiToTray::RequestProcessSnapshot => {
+                        // Live process snapshots are handled only by Runner.
+                    }
                 },
                 Err(TryRecvError::Empty) => {}
                 Err(TryRecvError::Disconnected) => {

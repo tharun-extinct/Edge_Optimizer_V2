@@ -13,7 +13,7 @@ use edge_optimizer_core::{
     config,
     crosshair_overlay::{self, OverlayHandle},
     engine_ipc::EnginePipeClient,
-    ipc::{GuiToTray, NamedPipeServer, TrayToGui},
+    ipc::{GuiToTray, NamedPipeServer, ProcessSnapshotEntry, TrayToGui},
     macro_worker::MacroWorkerHandle,
     orchestration::{
         AuthContext, CleanupKind, EngineState, EngineToRunnerEvent, Envelope, IdempotencyCache,
@@ -377,6 +377,20 @@ fn handle_settings_message(
             state_store.set_overlay_visible(visible)?;
         }
         GuiToTray::Shutdown => return Ok(true),
+        GuiToTray::RequestProcessSnapshot => {
+            let processes = edge_optimizer_core::process::list_processes()
+                .into_iter()
+                .map(|process| ProcessSnapshotEntry {
+                    name: process.name,
+                    cpu_percent: process.cpu_percent,
+                    memory_kb: process.memory_kb,
+                })
+                .collect();
+            if let Err(error) = pipe_server.send(&TrayToGui::ProcessSnapshot(processes)) {
+                tracing::warn!("failed to send process snapshot: {}", error);
+                *settings_connected = false;
+            }
+        }
         GuiToTray::Orchestration(env) => {
             if !idempotency.check_and_insert(&env.request_id) {
                 send_runner_event(

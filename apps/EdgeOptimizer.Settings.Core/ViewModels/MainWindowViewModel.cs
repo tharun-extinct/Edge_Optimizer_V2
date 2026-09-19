@@ -33,6 +33,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _runnerClient.ConnectionChanged += (_, connected) =>
         {
             OnPropertyChanged(nameof(ActivationEnabled));
+            OnPropertyChanged(nameof(RunnerStatusLabel));
             NotifyCommandState();
             StatusMessage = connected ? "Connected to Runner. Loading profiles…" : "Runner is unavailable. Changes cannot be saved.";
         };
@@ -79,6 +80,7 @@ public sealed class MainWindowViewModel : ObservableObject
     public string CurrentPageTitle { get => _currentPageTitle; private set => SetProperty(ref _currentPageTitle, value); }
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
     public bool ActivationEnabled => _runnerClient.IsConnected;
+    public string RunnerStatusLabel => ActivationEnabled ? "Runner linked" : "Runner offline";
     public bool IsDashboardSelected => CurrentPageLabel == "Dashboard";
     public bool IsCrosshairSelected => CurrentPageLabel == "Crosshair";
     public bool IsMacrosSelected => CurrentPageLabel == "Macros";
