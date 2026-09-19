@@ -10,7 +10,30 @@ public interface IFilePicker
 public interface IRunnerClient
 {
     bool IsConnected { get; }
-    Task SaveProfileAsync(ProfileWorkspace profile, CancellationToken cancellationToken = default);
+    event EventHandler<bool>? ConnectionChanged;
+    event EventHandler<RunnerSnapshot>? SnapshotReceived;
+    event EventHandler<string>? StatusReceived;
+    event EventHandler<RunnerWindowCommand>? WindowCommandReceived;
+
+    Task StartAsync(CancellationToken cancellationToken = default);
+    Task SaveProfilesAsync(IReadOnlyList<ProfileWorkspace> profiles, CancellationToken cancellationToken = default);
+    Task SetActiveProfileAsync(string? profileName, CancellationToken cancellationToken = default);
+    Task SetOverlayVisibilityAsync(bool visible, CancellationToken cancellationToken = default);
+    Task ActivateProfileAsync(ProfileWorkspace profile, CancellationToken cancellationToken = default);
+    Task RequestCleanupAsync(string cleanupKind, CancellationToken cancellationToken = default);
+}
+
+public sealed record RunnerSnapshot(
+    IReadOnlyList<ProfileWorkspace> Profiles,
+    string? ActiveProfileName,
+    bool OverlayVisible);
+
+public enum RunnerWindowCommand
+{
+    Show,
+    Hide,
+    BringToFront,
+    Exit,
 }
 
 public interface IProcessSource

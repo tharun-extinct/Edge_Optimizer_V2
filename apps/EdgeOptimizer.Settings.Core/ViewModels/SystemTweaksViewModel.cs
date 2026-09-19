@@ -8,22 +8,30 @@ namespace EdgeOptimizer.Settings.Core.ViewModels;
 
 public sealed class SystemTweaksViewModel : ObservableObject
 {
+    private readonly Func<Task> _saveAsync;
+    private readonly Func<string, Task> _cleanupAsync;
     private ProfileWorkspace? _profile;
     private string _processFilter = string.Empty;
     private string _feedbackText = "System tweak values are stored in memory only.";
 
-    public SystemTweaksViewModel()
+    public SystemTweaksViewModel(Func<Task>? saveAsync = null, Func<string, Task>? cleanupAsync = null)
     {
+        _saveAsync = saveAsync ?? (() => Task.CompletedTask);
+        _cleanupAsync = cleanupAsync ?? (_ => Task.CompletedTask);
         RefreshCommand = new RelayCommand(() => FeedbackText = "Process refresh requires Runner IPC; showing preview data.");
         ProtectedListCommand = new RelayCommand(() => FeedbackText = "Protected-process details will come from Runner's validated policy.");
         RestoreDefaultsCommand = new RelayCommand(RestoreDefaults);
-        SaveCommand = new RelayCommand(() => FeedbackText = "Save queued in preview only. Runner IPC is required for persistence.");
+        SaveCommand = new AsyncRelayCommand(SaveAsync);
+        RunRecycleBinCleanupCommand = new AsyncRelayCommand(() => RunCleanupAsync("recycle-bin"));
+        RunBrowserCacheCleanupCommand = new AsyncRelayCommand(() => RunCleanupAsync("browser-cache"));
     }
 
     public ICommand RefreshCommand { get; }
     public ICommand ProtectedListCommand { get; }
     public ICommand RestoreDefaultsCommand { get; }
     public ICommand SaveCommand { get; }
+    public ICommand RunRecycleBinCleanupCommand { get; }
+    public ICommand RunBrowserCacheCleanupCommand { get; }
 
     public IEnumerable<ProcessItem> FilteredProcesses =>
         (_profile?.Processes.AsEnumerable() ?? Enumerable.Empty<ProcessItem>()).Where(FilterProcess);
@@ -89,5 +97,17 @@ public sealed class SystemTweaksViewModel : ObservableObject
         BrowserCacheEnabled = false;
         foreach (var process in _profile.Processes) process.IsSelected = false;
         FeedbackText = "Preview values restored to safe defaults.";
+    }
+
+    private async Task SaveAsync()
+    {
+        await _saveAsync();
+        FeedbackText = "System tweak settings saved to Runner.";
+    }
+
+    private async Task RunCleanupAsync(string kind)
+    {
+        await _cleanupAsync(kind);
+        FeedbackText = $"Requested {kind} cleanup through Runner.";
     }
 }

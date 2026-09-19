@@ -8,19 +8,21 @@ namespace EdgeOptimizer.Settings.Core.ViewModels;
 
 public sealed class MacrosViewModel : ObservableObject
 {
+    private readonly Func<Task> _saveAsync;
     private ProfileWorkspace? _profile;
     private MacroDefinition? _selectedMacro;
     private string _macroSearch = string.Empty;
     private string _feedbackText = "Macro edits are stored in memory only.";
 
-    public MacrosViewModel()
+    public MacrosViewModel(Func<Task>? saveAsync = null)
     {
+        _saveAsync = saveAsync ?? (() => Task.CompletedTask);
         NewMacroCommand = new RelayCommand(NewMacro);
         AddActionCommand = new RelayCommand(AddAction, () => SelectedMacro is not null);
         DeleteStepCommand = new RelayCommand<MacroStep>(DeleteStep, step => SelectedMacro is not null && step is not null);
         DeleteMacroCommand = new RelayCommand(DeleteMacro, () => SelectedMacro is not null);
         DuplicateMacroCommand = new RelayCommand(DuplicateMacro, () => SelectedMacro is not null);
-        SaveMacroCommand = new RelayCommand(() => FeedbackText = "Save queued in preview only. Runner IPC is required for persistence.");
+        SaveMacroCommand = new AsyncRelayCommand(SaveAsync);
         ChangeShortcutCommand = new RelayCommand(() => FeedbackText = "Shortcut capture will be connected through the macro worker contract.");
     }
 
@@ -116,5 +118,11 @@ public sealed class MacrosViewModel : ObservableObject
         ((RelayCommand<MacroStep>)DeleteStepCommand).NotifyCanExecuteChanged();
         ((RelayCommand)DeleteMacroCommand).NotifyCanExecuteChanged();
         ((RelayCommand)DuplicateMacroCommand).NotifyCanExecuteChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        await _saveAsync();
+        FeedbackText = "Macro changes saved to Runner.";
     }
 }

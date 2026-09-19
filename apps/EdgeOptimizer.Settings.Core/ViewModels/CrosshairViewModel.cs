@@ -10,19 +10,21 @@ namespace EdgeOptimizer.Settings.Core.ViewModels;
 public sealed class CrosshairViewModel : ObservableObject
 {
     private readonly IFilePicker _filePicker;
+    private readonly Func<Task> _saveAsync;
     private ProfileWorkspace? _profile;
     private string _feedbackText = "Preview values are stored in memory only.";
 
-    public CrosshairViewModel(IFilePicker filePicker)
+    public CrosshairViewModel(IFilePicker filePicker, Func<Task>? saveAsync = null)
     {
         _filePicker = filePicker;
+        _saveAsync = saveAsync ?? (() => Task.CompletedTask);
         MoveCommand = new RelayCommand<string>(Move);
         CenterCommand = new RelayCommand(Center);
         ReplaceImageCommand = new AsyncRelayCommand(ReplaceImageAsync);
         RemoveImageCommand = new RelayCommand(RemoveImage);
         HidePreviewCommand = new RelayCommand(HidePreview);
         ResetCommand = new RelayCommand(Reset);
-        SaveCommand = new RelayCommand(() => FeedbackText = "Save queued in preview only. Runner IPC is required for persistence.");
+        SaveCommand = new AsyncRelayCommand(SaveAsync);
     }
 
     public ICommand MoveCommand { get; }
@@ -38,7 +40,7 @@ public sealed class CrosshairViewModel : ObservableObject
         get => _profile?.CrosshairXOffset ?? 0;
         set
         {
-            if (_profile is null || _profile.CrosshairXOffset == Math.Clamp(value, -250, 250)) return;
+            if (_profile is null || _profile.CrosshairXOffset == Math.Clamp(value, -500, 500)) return;
             _profile.CrosshairXOffset = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(OffsetSummary));
@@ -50,7 +52,7 @@ public sealed class CrosshairViewModel : ObservableObject
         get => _profile?.CrosshairYOffset ?? 0;
         set
         {
-            if (_profile is null || _profile.CrosshairYOffset == Math.Clamp(value, -250, 250)) return;
+            if (_profile is null || _profile.CrosshairYOffset == Math.Clamp(value, -500, 500)) return;
             _profile.CrosshairYOffset = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(OffsetSummary));
@@ -106,6 +108,7 @@ public sealed class CrosshairViewModel : ObservableObject
         var selectedPath = await _filePicker.PickPngAsync();
         if (string.IsNullOrWhiteSpace(selectedPath) || _profile is null) return;
         _profile.CrosshairImageName = Path.GetFileName(selectedPath);
+        _profile.CrosshairImagePath = selectedPath;
         OnPropertyChanged(nameof(ImageName));
         FeedbackText = "Image selected for preview. Managed asset storage is not connected yet.";
     }
@@ -114,6 +117,7 @@ public sealed class CrosshairViewModel : ObservableObject
     {
         if (_profile is null) return;
         _profile.CrosshairImageName = "No image selected";
+        _profile.CrosshairImagePath = null;
         OnPropertyChanged(nameof(ImageName));
         FeedbackText = "Crosshair image removed from preview state.";
     }
@@ -129,8 +133,15 @@ public sealed class CrosshairViewModel : ObservableObject
         if (_profile is null) return;
         OverlayEnabled = true;
         _profile.CrosshairImageName = "dot-crosshair.png";
+        _profile.CrosshairImagePath = null;
         OnPropertyChanged(nameof(ImageName));
         Center();
         FeedbackText = "Crosshair preview reset.";
+    }
+
+    private async Task SaveAsync()
+    {
+        await _saveAsync();
+        FeedbackText = "Crosshair settings saved to Runner.";
     }
 }

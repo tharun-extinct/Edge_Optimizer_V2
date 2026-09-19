@@ -13,7 +13,18 @@ public sealed class MacroDefinition
 
     public string Name { get; set; }
     public string Shortcut { get; set; }
+    public bool IsEnabled { get; set; } = true;
+    public MacroRepeatMode RepeatMode { get; set; } = MacroRepeatMode.Once;
+    public uint RepeatCount { get; set; } = 1;
+    public string StopKey { get; set; } = string.Empty;
     public ObservableCollection<MacroStep> Steps { get; }
 }
 
 public sealed record MacroStep(string Action, string Value);
+
+public enum MacroRepeatMode
+{
+    Once,
+    Count,
+    UntilKeyPressed,
+}

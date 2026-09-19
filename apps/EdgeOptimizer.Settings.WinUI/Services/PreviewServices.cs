@@ -1,4 +1,3 @@
-using EdgeOptimizer.Settings.Core.Models;
 using EdgeOptimizer.Settings.Core.Services;
 using Windows.Storage.Pickers;
 
@@ -15,10 +14,4 @@ public sealed class WinUIFilePicker : IFilePicker
         var file = await picker.PickSingleFileAsync().AsTask(cancellationToken);
         return file?.Path;
     }
-}
-
-public sealed class DisconnectedRunnerClient : IRunnerClient
-{
-    public bool IsConnected => false;
-    public Task SaveProfileAsync(ProfileWorkspace profile, CancellationToken cancellationToken = default) => Task.FromException(new InvalidOperationException("Runner IPC is not connected."));
 }

@@ -8,6 +8,7 @@ public sealed class ProfileWorkspace : ObservableObject
     private bool _isActive;
     private bool _overlayEnabled = true;
     private string _crosshairImageName = "dot-crosshair.png";
+    private string? _crosshairImagePath;
     private int _crosshairXOffset;
     private int _crosshairYOffset;
     private bool _fanBoostEnabled = true;
@@ -44,8 +45,9 @@ public sealed class ProfileWorkspace : ObservableObject
     public bool IsActive { get => _isActive; set => SetProperty(ref _isActive, value); }
     public bool OverlayEnabled { get => _overlayEnabled; set => SetProperty(ref _overlayEnabled, value); }
     public string CrosshairImageName { get => _crosshairImageName; set => SetProperty(ref _crosshairImageName, value); }
-    public int CrosshairXOffset { get => _crosshairXOffset; set => SetProperty(ref _crosshairXOffset, Math.Clamp(value, -250, 250)); }
-    public int CrosshairYOffset { get => _crosshairYOffset; set => SetProperty(ref _crosshairYOffset, Math.Clamp(value, -250, 250)); }
+    public string? CrosshairImagePath { get => _crosshairImagePath; set => SetProperty(ref _crosshairImagePath, value); }
+    public int CrosshairXOffset { get => _crosshairXOffset; set => SetProperty(ref _crosshairXOffset, Math.Clamp(value, -500, 500)); }
+    public int CrosshairYOffset { get => _crosshairYOffset; set => SetProperty(ref _crosshairYOffset, Math.Clamp(value, -500, 500)); }
     public bool FanBoostEnabled { get => _fanBoostEnabled; set => SetProperty(ref _fanBoostEnabled, value); }
     public bool RecycleBinEnabled { get => _recycleBinEnabled; set => SetProperty(ref _recycleBinEnabled, value); }
     public bool BrowserCacheEnabled { get => _browserCacheEnabled; set => SetProperty(ref _browserCacheEnabled, value); }

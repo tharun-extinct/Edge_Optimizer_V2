@@ -6,6 +6,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::ptr::null_mut;
 use std::time::Duration;
+#[cfg(windows)]
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(windows)]
 use windows::Win32::{Foundation::*, Storage::FileSystem::*, System::Pipes::*};
@@ -70,6 +72,7 @@ pub enum TrayToGui {
 #[allow(dead_code)]
 pub struct NamedPipeServer {
     pipe_handle: HANDLE,
+    connected: AtomicBool,
 }
 
 #[cfg(windows)]
@@ -84,8 +87,8 @@ impl NamedPipeServer {
         unsafe {
             let pipe_handle = CreateNamedPipeW(
                 windows::core::PCWSTR(pipe_name.as_ptr()),
-                PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
-                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+                PIPE_ACCESS_DUPLEX,
+                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_NOWAIT,
                 1,                // Max instances
                 8192,             // Out buffer size
                 8192,             // In buffer size
@@ -99,35 +102,44 @@ impl NamedPipeServer {
 
             tracing::info!("Named pipe server created: {}", PIPE_NAME);
 
-            Ok(Self { pipe_handle })
+            Ok(Self {
+                pipe_handle,
+                connected: AtomicBool::new(false),
+            })
         }
     }
 
-    /// Wait for a client to connect (blocking)
-    pub fn wait_for_connection(&self) -> Result<()> {
+    /// Accept a pending Settings connection without blocking Runner's UI loop.
+    pub fn try_accept(&self) -> Result<bool> {
+        if self.connected.load(Ordering::Acquire) {
+            return Ok(true);
+        }
+
         unsafe {
-            let result = ConnectNamedPipe(self.pipe_handle, Some(null_mut()));
-            match result {
+            match ConnectNamedPipe(self.pipe_handle, None) {
                 Ok(_) => {
                     tracing::info!("Client connected to named pipe");
-                    Ok(())
+                    self.connected.store(true, Ordering::Release);
+                    Ok(true)
                 }
-                Err(e) => {
-                    // ERROR_PIPE_CONNECTED means client already connected
-                    let error_code = e.code().0 as u32;
-                    if error_code == ERROR_PIPE_CONNECTED.0 {
+                Err(error) => match error.code().0 as u32 {
+                    code if code == ERROR_PIPE_CONNECTED.0 => {
                         tracing::info!("Client already connected to named pipe");
-                        Ok(())
-                    } else {
-                        Err(anyhow::anyhow!("ConnectNamedPipe failed: {}", e))
+                        self.connected.store(true, Ordering::Release);
+                        Ok(true)
                     }
-                }
+                    code if code == ERROR_PIPE_LISTENING.0 || code == ERROR_NO_DATA.0 => Ok(false),
+                    _ => Err(anyhow::anyhow!("ConnectNamedPipe failed: {}", error)),
+                },
             }
         }
     }
 
     /// Try to receive a message (non-blocking)
     pub fn try_recv(&self) -> Result<Option<GuiToTray>> {
+        if !self.connected.load(Ordering::Acquire) {
+            return Ok(None);
+        }
         let mut buffer = [0u8; 8192];
         let mut bytes_read = 0u32;
 
@@ -150,8 +162,13 @@ impl NamedPipeServer {
                 }
                 Err(e) => {
                     let error_code = e.code().0 as u32;
-                    if error_code == ERROR_NO_DATA.0 {
+                    if error_code == ERROR_NO_DATA.0 || error_code == ERROR_PIPE_LISTENING.0 {
                         return Ok(None); // No data available
+                    }
+                    if error_code == ERROR_BROKEN_PIPE.0 {
+                        let _ = DisconnectNamedPipe(self.pipe_handle);
+                        self.connected.store(false, Ordering::Release);
+                        return Ok(None);
                     }
                     Err(anyhow::anyhow!("ReadFile failed: {}", e))
                 }
@@ -161,6 +178,9 @@ impl NamedPipeServer {
 
     /// Send a message to Settings
     pub fn send(&self, message: &TrayToGui) -> Result<()> {
+        if !self.connected.load(Ordering::Acquire) {
+            anyhow::bail!("Settings is not connected");
+        }
         let data = bincode::serialize(message).context("Failed to serialize TrayToGui message")?;
 
         let mut bytes_written = 0u32;

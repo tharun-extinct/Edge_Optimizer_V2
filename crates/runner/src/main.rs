@@ -200,6 +200,14 @@ fn main() -> Result<()> {
                 }
             }
 
+            if !settings_connected {
+                match pipe_server.try_accept() {
+                    Ok(true) => settings_connected = true,
+                    Ok(false) => {}
+                    Err(error) => tracing::warn!("failed to accept Settings IPC: {}", error),
+                }
+            }
+
             match pipe_server.try_recv() {
                 Ok(Some(msg)) => {
                     if !settings_connected {
