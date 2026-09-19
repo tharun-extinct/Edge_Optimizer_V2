@@ -218,3 +218,27 @@ update
 
 ## Codex Agents
  <web-search> use it, to check the compatibility of the stack
+
+
+
+
+
+
+ You built the **Debug** configuration, so the Release executable does not exist yet.
+
+Run the Debug output instead:
+```
+dotnet build .\apps\EdgeOptimizer.Settings.WinUI\EdgeOptimizer.Settings.WinUI.csproj --configuration Debug --runtime win-x64 --no-restore
+
+```
+```powershell
+& .\apps\EdgeOptimizer.Settings.WinUI\bin\Debug\net10.0-windows10.0.19041.0\win-x64\EdgeOptimizer.Settings.WinUI.exe
+```
+
+To create and run a Release build:
+
+```powershell
+dotnet build .\apps\EdgeOptimizer.Settings.WinUI\EdgeOptimizer.Settings.WinUI.csproj --configuration Release --runtime win-x64 --no-restore
+
+& .\apps\EdgeOptimizer.Settings.WinUI\bin\Release\net10.0-windows10.0.19041.0\win-x64\EdgeOptimizer.Settings.WinUI.exe
+```

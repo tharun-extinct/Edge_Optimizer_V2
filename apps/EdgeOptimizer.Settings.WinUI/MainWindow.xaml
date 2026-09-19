@@ -1,3 +1,3 @@
-<winui:WindowEx x:Class="EdgeOptimizer.Settings.WinUI.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:winui="using:WinUIEx" Title="Edge Optimizer" Width="1500" Height="940" MinWidth="1100" MinHeight="720" IsResizable="True" IsMaximizable="True" SystemBackdrop="Mica">
+<winui:WindowEx x:Class="EdgeOptimizer.Settings.WinUI.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:winui="using:WinUIEx" Title="Edge Optimizer" Width="1500" Height="940" MinWidth="1100" MinHeight="720" IsResizable="True" IsMaximizable="True">
   <Grid x:Name="Root" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"/>
 </winui:WindowEx>
