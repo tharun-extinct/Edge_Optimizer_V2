@@ -30,7 +30,7 @@ Put a rule in `architecture.md` when multiple features must obey it or when chan
 - persistence, recovery, concurrency, security, or failure contracts;
 - testing boundaries shared by several features.
 
-Put material in a feature blueprint when it describes one user-facing capability or one cohesive feature domain. State how shared contracts affect that feature without copying their definitions.
+Put material in a *BLUEPRINT* when it describes one user-facing capability or one cohesive feature domain. State how shared contracts affect that feature without copying their definitions.
 
 Do not make both documents authoritative for the same invariant. Link to an exact architecture heading, then describe only the feature-specific consequence.
 
@@ -46,7 +46,7 @@ Read [references/templates.md](references/templates.md) when creating a new arch
 
 ### 4. Create or update the blueprint manifest
 
-Use `blueprints/README.md` as the routing manifest unless the repository already has an equivalent manifest.
+Use `blueprints/README.md` as the routing manifest.
 
 For every feature domain, record:
 
@@ -84,7 +84,7 @@ Keep each blueprint independently useful after its declared dependencies are loa
 7. `Acceptance criteria`
 8. `Remaining gaps`
 
-Link architecture dependencies to exact headings. For every dependency, explain its concrete consequence for this feature. Use evidence-based status labels such as `Implemented`, `Partial`, `Planned`, `Deprecated`, or `Unknown`, and include verification evidence or a verification date when useful.
+Link architecture dependencies to exact headings. For every dependency, explain its concrete consequence for this feature. Use evidence-based status labels such as `Implemented`, `Partial`, `Planned`, `Deprecated`, or `superseded by {blueprintName}`, and include verification evidence or a verification date when useful.
 
 Read [references/templates.md](references/templates.md) for reusable document shapes and [references/examples.md](references/examples.md) for routing and dependency examples.
 
