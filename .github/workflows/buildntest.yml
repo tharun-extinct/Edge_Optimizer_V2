@@ -49,6 +49,18 @@ jobs:
       - name: Build workspace
         run: cargo build --workspace --all-targets --verbose
 
+      - name: Build runtime bundle binaries
+        run: cargo build --workspace --release --verbose
+
+      - name: Stage Rust runtime binaries
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/runtime | Out-Null
+          Copy-Item target/release/EdgeOptimizer_Runner.exe artifacts/runtime/
+          Copy-Item target/release/EdgeOptimizer_Crosshair.exe artifacts/runtime/
+          Copy-Item target/release/EdgeOptimizer_Macro.exe artifacts/runtime/
+          Copy-Item target/release/EdgeOptimizer_EngineSvc.exe artifacts/runtime/
+          Copy-Item target/release/EdgeOptimizer_EngineCtl.exe artifacts/runtime/
+
       - name: Test workspace
         run: |
           cargo test --workspace --all-targets --verbose 2>&1 | Tee-Object -FilePath artifacts/rust/cargo-test.log
@@ -65,6 +77,13 @@ jobs:
           name: rust-test-coverage
           path: artifacts/rust
           if-no-files-found: warn
+
+      - name: Upload Rust runtime binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-optimizer-rust-runtime
+          path: artifacts/runtime
+          if-no-files-found: error
 
   winui:
     name: WinUI logic, XAML build, and publish
@@ -113,3 +132,31 @@ jobs:
           name: winui-test-coverage-publish
           path: artifacts/winui
           if-no-files-found: warn
+
+  bundle:
+    name: Assemble Windows application bundle
+    needs: [rust, winui]
+    runs-on: windows-latest
+
+    steps:
+      - name: Download Rust runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: edge-optimizer-rust-runtime
+          path: bundle
+
+      - name: Download WinUI publish output
+        uses: actions/download-artifact@v4
+        with:
+          name: winui-test-coverage-publish
+          path: winui-artifact
+
+      - name: Add WinUI client beside Runner and workers
+        run: Copy-Item winui-artifact/publish/* bundle/ -Recurse -Force
+
+      - name: Upload runnable Windows bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-optimizer-windows-x64
+          path: bundle
+          if-no-files-found: error

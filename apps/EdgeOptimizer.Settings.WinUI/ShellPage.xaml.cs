@@ -9,7 +9,7 @@ namespace EdgeOptimizer.Settings.WinUI;
 public sealed partial class ShellPage : Page
 {
     private readonly MainWindowViewModel _viewModel;
-    public UIElement DragRegion => TitleBarDragRegion;
+    public UIElement DragRegion => MainTitleBarDragRegion;
 
     public ShellPage(MainWindowViewModel viewModel)
     {

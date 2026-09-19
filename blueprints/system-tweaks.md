@@ -10,7 +10,7 @@ A player can configure profile-scoped optimization options, understand their saf
 
 Code inspection on 2026-09-05 confirms Rust profile storage for selected process names and a fan-speed flag, process-name normalization and protected-name tests, Runner-to-Engine command routing with fake-operation tests, and transitional Recycle Bin and browser-cache commands. The WinUI preview provides profile-scoped process selection, filtering, fan and cleanup toggles, selection totals, and restore-default behavior with unit tests.
 
-WinUI saves supported profile fields through Runner, requests a live read-only process snapshot, and sends explicit cleanup intents through Runner. Recycle Bin and browser-cache selection toggles still do not exist in the Rust profile contract. `fan_speed_max` is stored but is not applied by Engine command dispatch. The transitional EngineSvc performs cleanup in its SYSTEM environment, while the target architecture requires user-specific cleanup in the verified interactive-user context. PID-level safety validation is not implemented.
+WinUI saves supported profile fields through Runner and requests a live read-only process snapshot. The compatibility client can encode explicit cleanup intents, but the cleanup controls remain disabled because the transitional EngineSvc would execute them in its SYSTEM environment; the target architecture requires user-specific cleanup in the verified interactive-user context. Recycle Bin and browser-cache selection toggles still do not exist in the Rust profile contract. `fan_speed_max` is stored but is not applied by Engine command dispatch. PID-level safety validation is not implemented.
 
 ## Architecture dependencies
 
@@ -79,6 +79,7 @@ Partial results remain visible by operation. Failure of cleanup, process termina
 - [x] Keep WinUI process/toggle preview state independent between profiles and restore safe defaults deterministically.
 - [x] Replace fixture processes with a Runner-provided read-only snapshot.
 - [ ] Add structured protected/ambiguous selection reasons.
+- [ ] Enable explicit Recycle Bin and browser-cache cleanup only after Runner executes them in the verified interactive-user context.
 - [ ] Align WinUI 3 and Rust profile contracts for every supported tweak; do not imply persistence for preview-only toggles.
 - [ ] Define supported fan-policy hardware, authorization, apply, rollback, and unavailable behavior before enabling it.
 - [ ] Classify each operation by execution context and move user cleanup out of the SYSTEM environment.

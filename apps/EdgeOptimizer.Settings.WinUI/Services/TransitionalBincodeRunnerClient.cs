@@ -295,7 +295,7 @@ internal static class BincodeCodec
     {
         WriteString(writer, macro.Name);
         writer.Write(macro.IsEnabled);
-        writer.Write((ulong)macro.Steps.Count);
+        writer.Write((ulong)macro.Steps.Sum(step => step.Action.Equals("Key press", StringComparison.OrdinalIgnoreCase) ? 2 : 1));
         foreach (var step in macro.Steps) WriteStep(writer, step);
         WriteShortcut(writer, macro.Shortcut);
         writer.Write((uint)macro.RepeatMode);
@@ -321,6 +321,24 @@ internal static class BincodeCodec
     {
         if (step.Action.Equals("Key up", StringComparison.OrdinalIgnoreCase)) { writer.Write(1u); WriteString(writer, step.Value); writer.Write(0ul); }
         else if (step.Action.Equals("Wait", StringComparison.OrdinalIgnoreCase)) { writer.Write(4u); writer.Write(ParseUnsigned(step.Value)); }
+        else if (step.Action.Equals("Key press", StringComparison.OrdinalIgnoreCase))
+        {
+            writer.Write(0u); WriteString(writer, step.Value); writer.Write(0ul);
+            writer.Write(1u); WriteString(writer, step.Value); writer.Write(0ul);
+        }
+        else if (step.Action.Equals("Mouse down", StringComparison.OrdinalIgnoreCase) || step.Action.Equals("Mouse up", StringComparison.OrdinalIgnoreCase))
+        {
+            writer.Write(2u);
+            writer.Write(step.Value.Equals("Right", StringComparison.OrdinalIgnoreCase) ? 1u : step.Value.Equals("Middle", StringComparison.OrdinalIgnoreCase) ? 2u : 0u);
+            writer.Write(step.Action.Equals("Mouse down", StringComparison.OrdinalIgnoreCase));
+        }
+        else if (step.Action.Equals("Mouse move", StringComparison.OrdinalIgnoreCase))
+        {
+            var coordinates = step.Value.Split(',', StringSplitOptions.TrimEntries);
+            writer.Write(3u);
+            writer.Write(coordinates.Length > 0 && int.TryParse(coordinates[0], out var x) ? x : 0);
+            writer.Write(coordinates.Length > 1 && int.TryParse(coordinates[1], out var y) ? y : 0);
+        }
         else { writer.Write(0u); WriteString(writer, step.Value); writer.Write(0ul); }
     }
 

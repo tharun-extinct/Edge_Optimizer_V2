@@ -1,6 +1,6 @@
-//! IPC Handler - Communication with Settings process
+//! IPC Handler - Communication with Runner
 //!
-//! Listens for configuration updates from the Settings UI via Named Pipes.
+//! Listens for active-profile configuration updates from Runner via named pipes.
 
 use crate::MacroAppState;
 use anyhow::Result;
@@ -52,13 +52,13 @@ pub fn run_ipc_listener(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
             continue;
         }
 
-        info!("Macro pipe created, waiting for Settings connection...");
+        info!("Macro pipe created, waiting for Runner connection...");
 
         // Wait for Settings to connect
         unsafe {
             match ConnectNamedPipe(pipe_handle, Some(null_mut())) {
                 Ok(_) => {
-                    info!("Settings connected to Macro pipe");
+                    info!("Runner connected to Macro pipe");
                 }
                 Err(e) => {
                     let error_code = e.code().0 as u32;
@@ -73,7 +73,7 @@ pub fn run_ipc_listener(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
 
         // Read messages from Settings
         loop {
-            let mut buffer = [0u8; 8192];
+            let mut buffer = vec![0u8; 1024 * 1024];
             let mut bytes_read = 0u32;
 
             let read_result =
@@ -99,7 +99,7 @@ pub fn run_ipc_listener(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
                 Err(e) => {
                     let error_code = e.code().0 as u32;
                     if error_code == ERROR_BROKEN_PIPE.0 || error_code == ERROR_NO_DATA.0 {
-                        info!("Settings disconnected from Macro pipe");
+                        info!("Runner disconnected from Macro pipe");
                         break;
                     }
                     error!("ReadFile error: {}", e);

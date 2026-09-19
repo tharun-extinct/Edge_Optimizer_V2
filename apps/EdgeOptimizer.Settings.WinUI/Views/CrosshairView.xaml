@@ -5,7 +5,7 @@
         <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
           <Grid><StackPanel><TextBlock Text="Live preview" Style="{StaticResource SectionTitleStyle}"/><TextBlock Text="16:9 preview · position is relative to screen center" Style="{StaticResource MutedTextStyle}" Margin="0,5,0,0"/></StackPanel><ToggleSwitch HorizontalAlignment="Right" Header="Overlay" IsOn="{Binding OverlayEnabled, Mode=TwoWay}" AutomationProperties.AutomationId="Crosshair.Enabled"/></Grid>
           <Border Grid.Row="1" Margin="0,18,0,14" MinHeight="390" Background="#080D12" BorderBrush="{ThemeResource AppStrokeBrush}" BorderThickness="1" CornerRadius="7">
-            <Grid Clip="{x:Null}">
+            <Grid>
               <Grid.Background><SolidColorBrush Color="#080D12"/></Grid.Background>
               <Line X1="0" Y1="0" X2="0" Y2="1000" Stroke="#243746" StrokeThickness="1" HorizontalAlignment="Center"/>
               <Line X1="0" Y1="0" X2="1600" Y2="0" Stroke="#243746" StrokeThickness="1" VerticalAlignment="Center"/>

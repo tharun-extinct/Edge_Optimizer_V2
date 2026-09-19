@@ -78,6 +78,9 @@ cargo build --release -p edge_optimizer_crosshair
 - `target\release\EdgeOptimizer.Settings.WinUI.exe` - Main GUI application
 - `target\release\EdgeOptimizer_Runner.exe` - System tray manager
 - `target\release\EdgeOptimizer_Crosshair.exe` - Crosshair overlay
+- `target\release\EdgeOptimizer_Macro.exe` - Unprivileged macro worker
+
+Pull-request CI also publishes `edge-optimizer-windows-x64`, which places the self-contained WinUI client beside Runner and all workers. Use that combined artifact for functional testing; the WinUI-only artifact is intended for build diagnostics.
 
 ### 🎮 **Running the Application**
 

@@ -23,7 +23,7 @@ WinUI 3 never owns durable state or privileged operations. It requests a snapsho
 
 ### Required
 
-- [IPC contracts](ipc-contracts.md) — generated C# types are required before enabling Runner-backed behavior.
+- [IPC contracts](ipc-contracts.md) — generated C# types are required before retiring the transitional compatibility transport.
 
 ### Impact checks
 
@@ -45,6 +45,7 @@ WinUI 3 never owns durable state or privileged operations. It requests a snapsho
 - [x] Perform profile collection saves through Runner; generated versioned bindings remain planned.
 - [ ] Exit fully when the window closes.
 - [x] Runner launches the packaged WinUI Settings client.
+- [x] Save supported profile state, activate profiles, and request live process/cleanup operations through Runner's transitional transport.
 - [x] Include WinUI 3 build and logic tests in CI.
 
 ## Remaining gaps

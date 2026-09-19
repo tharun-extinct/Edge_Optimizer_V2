@@ -3,7 +3,7 @@
 //! This process runs separately from the Settings UI and handles:
 //! - Global hotkey listening for macro triggers
 //! - Macro execution with precise timing
-//! - IPC communication with Settings for configuration updates
+//! - IPC communication with Runner for active-profile configuration updates
 //!
 //! Architecture:
 //! - Receives macro configurations from Settings via IPC
@@ -27,7 +27,7 @@ use tracing::{error, info};
 
 /// Application state shared across threads
 pub struct MacroAppState {
-    /// Current macro configuration (from active profile)
+    /// Current macro configuration supplied by Runner for the active profile
     pub config: MacroConfig,
     /// Whether macro execution is enabled
     pub enabled: bool,

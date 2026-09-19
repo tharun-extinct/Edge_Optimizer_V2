@@ -15,6 +15,10 @@ public partial class CrosshairView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        Unloaded += (_, _) =>
+        {
+            if (_viewModel is not null) _viewModel.PropertyChanged -= ViewModelPropertyChanged;
+        };
     }
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)

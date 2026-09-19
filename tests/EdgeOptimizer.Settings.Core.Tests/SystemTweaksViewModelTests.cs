@@ -49,4 +49,23 @@ public sealed class SystemTweaksViewModelTests
         Assert.False(viewModel.FanBoostEnabled);
         Assert.True(first.FanBoostEnabled);
     }
+
+    [Fact]
+    public void ProcessSnapshotPreservesSelectionsAndUpdatesMetrics()
+    {
+        // Verifies a Runner process refresh keeps selected names while replacing stale CPU and memory values.
+        var profile = new ProfileWorkspace("Test", false);
+        var viewModel = new SystemTweaksViewModel();
+        viewModel.LoadProfile(profile);
+
+        viewModel.ApplyProcessSnapshot(new[]
+        {
+            new ProcessItem("Discord.exe", "2.0%", "200 MB", false),
+            new ProcessItem("game.exe", "8.0%", "900 MB", false),
+        });
+
+        Assert.True(profile.Processes.Single(process => process.Name == "Discord.exe").IsSelected);
+        Assert.False(profile.Processes.Single(process => process.Name == "game.exe").IsSelected);
+        Assert.Equal("1 selected", viewModel.SelectionSummary);
+    }
 }

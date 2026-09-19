@@ -75,7 +75,13 @@ impl MacroWorkerHandle {
 #[cfg(windows)]
 impl Drop for MacroWorkerHandle {
     fn drop(&mut self) {
-        unsafe { let _ = CloseHandle(self.pipe_handle); }
+        unsafe {
+            let _ = CloseHandle(self.pipe_handle);
+        }
+        if !matches!(self.child.try_wait(), Ok(Some(_))) {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
     }
 }
 
@@ -110,6 +116,9 @@ pub struct MacroWorkerHandle;
 
 #[cfg(not(windows))]
 impl MacroWorkerHandle {
-    pub fn start(_config: MacroConfig) -> Result<Self> { anyhow::bail!("Macro worker is only available on Windows") }
+    pub fn start(_config: MacroConfig) -> Result<Self> {
+        anyhow::bail!("Macro worker is only available on Windows")
+    }
+
     pub fn stop(self) {}
 }

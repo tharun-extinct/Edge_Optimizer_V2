@@ -1,14 +1,13 @@
+use crate::macro_config::MacroConfig;
 use crate::orchestration::{Envelope, RunnerToSettingsEvent, SettingsToRunnerCommand};
 /// Inter-Process Communication between Settings and Runner processes
 /// Uses Windows Named Pipes for cross-process communication
 use crate::profile::Profile;
-use crate::macro_config::MacroConfig;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::ptr::null_mut;
-use std::time::Duration;
-#[cfg(windows)]
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 #[cfg(windows)]
 use windows::Win32::{Foundation::*, Storage::FileSystem::*, System::Pipes::*};
@@ -459,6 +458,35 @@ mod tests {
                 payload: SettingsToRunnerCommand::OpenFlyout,
                 ..
             }) if request_id == "request-88"
+        ));
+    }
+
+    #[test]
+    fn process_snapshot_round_trips_without_enumerating_live_processes() {
+        // Verifies process metrics cross the transitional pipe using deterministic fixture data only.
+        let message = TrayToGui::ProcessSnapshot(vec![ProcessSnapshotEntry {
+            name: "fixture.exe".into(),
+            cpu_percent: 1.5,
+            memory_kb: 2048,
+        }]);
+        let encoded = bincode::serialize(&message).unwrap();
+        let decoded: TrayToGui = bincode::deserialize(&encoded).unwrap();
+        assert!(matches!(
+            decoded,
+            TrayToGui::ProcessSnapshot(entries)
+                if entries.len() == 1 && entries[0].name == "fixture.exe"
+        ));
+    }
+
+    #[test]
+    fn macro_worker_configuration_round_trips() {
+        // Verifies Runner and the Macro worker share the same activation-time configuration representation.
+        let command = RunnerToMacroCommand::ConfigUpdated(Default::default());
+        let encoded = bincode::serialize(&command).unwrap();
+        let decoded: RunnerToMacroCommand = bincode::deserialize(&encoded).unwrap();
+        assert!(matches!(
+            decoded,
+            RunnerToMacroCommand::ConfigUpdated(config) if config.macros.is_empty()
         ));
     }
 }

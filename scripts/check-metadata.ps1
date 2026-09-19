@@ -22,6 +22,11 @@ $binaries = @{
         ProductName = "Edge Optimizer"
         InternalName = "EdgeOptimizer.Crosshair"
     }
+    "EdgeOptimizer_Macro.exe" = @{
+        FileDescription = "EdgeOptimizer.Macro"
+        ProductName = "Edge Optimizer"
+        InternalName = "EdgeOptimizer.Macro"
+    }
 }
 
 Write-Host "Checking binary metadata..." -ForegroundColor Cyan
