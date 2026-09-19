@@ -22,7 +22,7 @@ public sealed class MainWindowViewModel : ObservableObject
         Dashboard = new DashboardViewModel(NavigateTo);
         Crosshair = new CrosshairViewModel(filePicker, SaveProfilesAsync);
         Macros = new MacrosViewModel(SaveProfilesAsync);
-        SystemTweaks = new SystemTweaksViewModel(SaveProfilesAsync, RequestCleanupAsync);
+        SystemTweaks = new SystemTweaksViewModel(SaveProfilesAsync, RequestCleanupAsync, RequestProcessSnapshotAsync);
         NavigateCommand = new RelayCommand<string>(NavigateTo);
         NewProfileCommand = new RelayCommand(NewProfile);
         DuplicateProfileCommand = new RelayCommand(DuplicateProfile, () => SelectedProfile is not null);
@@ -38,6 +38,7 @@ public sealed class MainWindowViewModel : ObservableObject
         };
         _runnerClient.SnapshotReceived += (_, snapshot) => ApplySnapshot(snapshot);
         _runnerClient.StatusReceived += (_, status) => StatusMessage = status;
+        _runnerClient.ProcessSnapshotReceived += (_, processes) => SystemTweaks.ApplyProcessSnapshot(processes);
 
         Profiles.Add(new ProfileWorkspace("Fortnite", true));
         Profiles.Add(new ProfileWorkspace("Valorant", false));
@@ -156,6 +157,7 @@ public sealed class MainWindowViewModel : ObservableObject
     }
 
     private Task RequestCleanupAsync(string kind) => _runnerClient.RequestCleanupAsync(kind);
+    private Task RequestProcessSnapshotAsync() => _runnerClient.RequestProcessSnapshotAsync();
 
     private string GetUniqueProfileName(string root)
     {

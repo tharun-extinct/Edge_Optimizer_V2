@@ -10,15 +10,17 @@ public sealed class SystemTweaksViewModel : ObservableObject
 {
     private readonly Func<Task> _saveAsync;
     private readonly Func<string, Task> _cleanupAsync;
+    private readonly Func<Task> _refreshProcessesAsync;
     private ProfileWorkspace? _profile;
     private string _processFilter = string.Empty;
     private string _feedbackText = "System tweak values are stored in memory only.";
 
-    public SystemTweaksViewModel(Func<Task>? saveAsync = null, Func<string, Task>? cleanupAsync = null)
+    public SystemTweaksViewModel(Func<Task>? saveAsync = null, Func<string, Task>? cleanupAsync = null, Func<Task>? refreshProcessesAsync = null)
     {
         _saveAsync = saveAsync ?? (() => Task.CompletedTask);
         _cleanupAsync = cleanupAsync ?? (_ => Task.CompletedTask);
-        RefreshCommand = new RelayCommand(() => FeedbackText = "Process refresh requires Runner IPC; showing preview data.");
+        _refreshProcessesAsync = refreshProcessesAsync ?? (() => Task.CompletedTask);
+        RefreshCommand = new AsyncRelayCommand(RefreshProcessesAsync);
         ProtectedListCommand = new RelayCommand(() => FeedbackText = "Protected-process details will come from Runner's validated policy.");
         RestoreDefaultsCommand = new RelayCommand(RestoreDefaults);
         SaveCommand = new AsyncRelayCommand(SaveAsync);
@@ -81,6 +83,22 @@ public sealed class SystemTweaksViewModel : ObservableObject
         OnPropertyChanged(nameof(BrowserCacheEnabled));
     }
 
+    public void ApplyProcessSnapshot(IReadOnlyList<ProcessItem> processes)
+    {
+        if (_profile is null) return;
+        var selected = _profile.Processes.Where(process => process.IsSelected).Select(process => process.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var process in _profile.Processes) process.PropertyChanged -= ProcessPropertyChanged;
+        _profile.Processes.Clear();
+        foreach (var process in processes)
+        {
+            process.IsSelected = selected.Contains(process.Name);
+            process.PropertyChanged += ProcessPropertyChanged;
+            _profile.Processes.Add(process);
+        }
+        OnPropertyChanged(nameof(FilteredProcesses));
+        OnPropertyChanged(nameof(SelectionSummary));
+    }
+
     private bool FilterProcess(ProcessItem process) =>
         string.IsNullOrWhiteSpace(ProcessFilter) || process.Name.Contains(ProcessFilter, StringComparison.OrdinalIgnoreCase);
 
@@ -109,5 +127,11 @@ public sealed class SystemTweaksViewModel : ObservableObject
     {
         await _cleanupAsync(kind);
         FeedbackText = $"Requested {kind} cleanup through Runner.";
+    }
+
+    private async Task RefreshProcessesAsync()
+    {
+        await _refreshProcessesAsync();
+        FeedbackText = "Requested a fresh process snapshot from Runner.";
     }
 }

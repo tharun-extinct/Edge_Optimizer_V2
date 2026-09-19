@@ -5,23 +5,13 @@
 use crate::MacroAppState;
 use anyhow::Result;
 use edge_optimizer_core::ipc::MACRO_PIPE_NAME;
+use edge_optimizer_core::ipc::RunnerToMacroCommand;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, error, info, warn};
 
 #[cfg(windows)]
 use windows::Win32::{Foundation::*, Storage::FileSystem::*, System::Pipes::*};
-
-/// Messages from Settings to Macro process
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum SettingsToMacro {
-    /// Update macro configuration (when profile changes or macros edited)
-    ConfigUpdated(edge_optimizer_core::macro_config::MacroConfig),
-    /// Enable/disable macro execution globally
-    SetEnabled(bool),
-    /// Shutdown the macro process
-    Shutdown,
-}
 
 /// Messages from Macro to Settings process
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -92,7 +82,7 @@ pub fn run_ipc_listener(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
             match read_result {
                 Ok(_) if bytes_read > 0 => {
                     // Deserialize and process message
-                    match bincode::deserialize::<SettingsToMacro>(&buffer[..bytes_read as usize]) {
+                    match bincode::deserialize::<RunnerToMacroCommand>(&buffer[..bytes_read as usize]) {
                         Ok(message) => {
                             debug!("Received IPC message: {:?}", message);
                             process_message(&state, message);
@@ -130,19 +120,20 @@ pub fn run_ipc_listener(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
 }
 
 /// Process a message from Settings
-fn process_message(state: &Arc<Mutex<MacroAppState>>, message: SettingsToMacro) {
+fn process_message(state: &Arc<Mutex<MacroAppState>>, message: RunnerToMacroCommand) {
     match message {
-        SettingsToMacro::ConfigUpdated(config) => {
+        RunnerToMacroCommand::ConfigUpdated(config) => {
             info!("Macro config updated: {} macros", config.macros.len());
             let mut state_guard = state.lock().unwrap();
             state_guard.config = config;
+            state_guard.config_revision = state_guard.config_revision.wrapping_add(1);
         }
-        SettingsToMacro::SetEnabled(enabled) => {
+        RunnerToMacroCommand::SetEnabled(enabled) => {
             info!("Macro execution enabled: {}", enabled);
             let mut state_guard = state.lock().unwrap();
             state_guard.enabled = enabled;
         }
-        SettingsToMacro::Shutdown => {
+        RunnerToMacroCommand::Shutdown => {
             info!("Shutdown requested");
             std::process::exit(0);
         }

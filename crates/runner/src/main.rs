@@ -14,6 +14,7 @@ use edge_optimizer_core::{
     crosshair_overlay::{self, OverlayHandle},
     engine_ipc::EnginePipeClient,
     ipc::{GuiToTray, NamedPipeServer, TrayToGui},
+    macro_worker::MacroWorkerHandle,
     orchestration::{
         AuthContext, CleanupKind, EngineState, EngineToRunnerEvent, Envelope, IdempotencyCache,
         OperationResult, RunnerToEngineCommand, RunnerToSettingsEvent, SettingsToRunnerCommand,
@@ -143,6 +144,7 @@ fn main() -> Result<()> {
     let mut engine_state = EngineState::Starting;
     let mut idempotency = IdempotencyCache::default();
     let mut overlay_handle: Option<OverlayHandle> = None;
+    let mut macro_handle: Option<MacroWorkerHandle> = None;
     let mut should_exit = false;
 
     let mut last_click_time: Option<Instant> = None;
@@ -225,6 +227,7 @@ fn main() -> Result<()> {
                         &mut engine_state,
                         &mut idempotency,
                         &mut overlay_handle,
+                        &mut macro_handle,
                         &mut tray,
                         &mut state_store,
                     )?;
@@ -256,6 +259,9 @@ fn main() -> Result<()> {
     }
 
     if let Some(handle) = overlay_handle.take() {
+        handle.stop();
+    }
+    if let Some(handle) = macro_handle.take() {
         handle.stop();
     }
 
@@ -344,6 +350,7 @@ fn handle_settings_message(
     engine_state: &mut EngineState,
     idempotency: &mut IdempotencyCache,
     overlay_handle: &mut Option<OverlayHandle>,
+    macro_handle: &mut Option<MacroWorkerHandle>,
     tray: &mut TrayIconManager,
     state_store: &mut StateStore,
 ) -> Result<bool> {
@@ -388,6 +395,7 @@ fn handle_settings_message(
                 settings_connected,
                 engine_state,
                 overlay_handle,
+                macro_handle,
                 tray,
                 state_store,
             )?;
@@ -402,6 +410,7 @@ fn process_orchestration_command(
     settings_connected: &mut bool,
     engine_state: &mut EngineState,
     overlay_handle: &mut Option<OverlayHandle>,
+    macro_handle: &mut Option<MacroWorkerHandle>,
     tray: &mut TrayIconManager,
     state_store: &mut StateStore,
 ) -> Result<()> {
@@ -415,7 +424,7 @@ fn process_orchestration_command(
                 EngineState::Starting,
             );
             let profile_to_persist = profile.clone();
-            let event = optimize_profile(env.request_id, profile, overlay_handle);
+            let event = optimize_profile(env.request_id, profile, overlay_handle, macro_handle);
             if matches!(event, RunnerToSettingsEvent::OptimizationResult(ref r) if r.success) {
                 state_store.save_active_profile(&profile_to_persist)?;
                 tray.set_active_profile(Some(profile_to_persist.name.clone()));
@@ -485,6 +494,7 @@ fn optimize_profile(
     request_id: String,
     profile: Profile,
     overlay_handle: &mut Option<OverlayHandle>,
+    macro_handle: &mut Option<MacroWorkerHandle>,
 ) -> RunnerToSettingsEvent {
     let command = RunnerToEngineCommand::ApplyProfile {
         profile: profile.clone(),
@@ -538,6 +548,24 @@ fn optimize_profile(
         }
     } else {
         result.summary = format!("{} | crosshair=off", result.summary);
+    }
+
+    if let Some(handle) = macro_handle.take() {
+        handle.stop();
+    }
+    if profile.macros.macros.iter().any(|macro_def| macro_def.enabled) {
+        match MacroWorkerHandle::start(profile.macros.clone()) {
+            Ok(handle) => {
+                *macro_handle = Some(handle);
+                result.summary = format!("{} | macros=on", result.summary);
+            }
+            Err(error) => {
+                result.success = false;
+                result.summary = format!("{} | macro_error={}", result.summary, error);
+            }
+        }
+    } else {
+        result.summary = format!("{} | macros=off", result.summary);
     }
 
     RunnerToSettingsEvent::OptimizationResult(result)

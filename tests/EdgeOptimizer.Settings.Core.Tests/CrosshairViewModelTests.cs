@@ -25,7 +25,7 @@ public sealed class CrosshairViewModelTests
         var viewModel = CreateViewModel(new FakeFilePicker(null));
         viewModel.XOffset = 900;
         viewModel.YOffset = -900;
-        Assert.Equal((250, -250), (viewModel.XOffset, viewModel.YOffset));
+        Assert.Equal((500, -500), (viewModel.XOffset, viewModel.YOffset));
     }
 
     [Fact]

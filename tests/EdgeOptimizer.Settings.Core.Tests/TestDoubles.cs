@@ -15,6 +15,7 @@ internal sealed class FakeRunnerClient(bool connected = false) : IRunnerClient
     public event EventHandler<bool>? ConnectionChanged;
     public event EventHandler<RunnerSnapshot>? SnapshotReceived;
     public event EventHandler<string>? StatusReceived;
+    public event EventHandler<IReadOnlyList<ProcessItem>>? ProcessSnapshotReceived;
     public event EventHandler<RunnerWindowCommand>? WindowCommandReceived;
 
     public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -29,4 +30,5 @@ internal sealed class FakeRunnerClient(bool connected = false) : IRunnerClient
     public Task SetOverlayVisibilityAsync(bool visible, CancellationToken cancellationToken = default) => Task.CompletedTask;
     public Task ActivateProfileAsync(ProfileWorkspace profile, CancellationToken cancellationToken = default) => Task.CompletedTask;
     public Task RequestCleanupAsync(string cleanupKind, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task RequestProcessSnapshotAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

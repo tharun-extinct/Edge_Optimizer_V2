@@ -104,6 +104,7 @@ pub fn run_hotkey_loop(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
 
     // Track registered hotkeys for cleanup
     let mut registered_hotkeys: Vec<HotKey> = Vec::new();
+    let mut registered_revision = u64::MAX;
 
     info!("Hotkey manager initialized, entering event loop...");
 
@@ -158,12 +159,10 @@ pub fn run_hotkey_loop(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
 
         // Check if we need to update hotkey registrations
         // (This would be signaled by IPC handler updating the state)
-        let needs_update = {
-            let _state_guard = state.lock().unwrap();
-            // Check if config changed - simple version: re-register periodically
-            // In production, use a flag or version number
-            false // Placeholder - implement proper change detection
-        };
+        let needs_update = state
+            .lock()
+            .map(|state_guard| state_guard.config_revision != registered_revision)
+            .unwrap_or(false);
 
         if needs_update {
             // Unregister old hotkeys
@@ -212,6 +211,7 @@ pub fn run_hotkey_loop(state: Arc<Mutex<MacroAppState>>) -> Result<()> {
                     }
                 }
             }
+            registered_revision = state_guard.config_revision;
         }
 
         // Small sleep to prevent busy-waiting

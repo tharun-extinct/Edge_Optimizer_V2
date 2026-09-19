@@ -13,6 +13,7 @@ public interface IRunnerClient
     event EventHandler<bool>? ConnectionChanged;
     event EventHandler<RunnerSnapshot>? SnapshotReceived;
     event EventHandler<string>? StatusReceived;
+    event EventHandler<IReadOnlyList<ProcessItem>>? ProcessSnapshotReceived;
     event EventHandler<RunnerWindowCommand>? WindowCommandReceived;
 
     Task StartAsync(CancellationToken cancellationToken = default);
@@ -21,6 +22,7 @@ public interface IRunnerClient
     Task SetOverlayVisibilityAsync(bool visible, CancellationToken cancellationToken = default);
     Task ActivateProfileAsync(ProfileWorkspace profile, CancellationToken cancellationToken = default);
     Task RequestCleanupAsync(string cleanupKind, CancellationToken cancellationToken = default);
+    Task RequestProcessSnapshotAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed record RunnerSnapshot(

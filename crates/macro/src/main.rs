@@ -33,6 +33,8 @@ pub struct MacroAppState {
     pub enabled: bool,
     /// Currently executing macro (prevents re-entry)
     pub executing: bool,
+    /// Incremented whenever Runner supplies an active-profile configuration.
+    pub config_revision: u64,
 }
 
 impl Default for MacroAppState {
@@ -41,6 +43,7 @@ impl Default for MacroAppState {
             config: MacroConfig::default(),
             enabled: true,
             executing: false,
+            config_revision: 0,
         }
     }
 }

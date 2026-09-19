@@ -169,7 +169,7 @@ impl NamedPipeServer {
                     if error_code == ERROR_BROKEN_PIPE.0 {
                         let _ = DisconnectNamedPipe(self.pipe_handle);
                         self.connected.store(false, Ordering::Release);
-                        return Ok(None);
+                        return Err(anyhow::anyhow!("Settings disconnected"));
                     }
                     Err(anyhow::anyhow!("ReadFile failed: {}", e))
                 }
